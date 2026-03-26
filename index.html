@@ -1,0 +1,3274 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <meta name="theme-color" content="#1a1612">
+  <meta name="apple-mobile-web-app-title" content="탐구보고서">
+<title>탐구보고서 작성 폼</title>
+  <!-- Firebase + GitHub Pages 버전 v4.0 -->
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, deleteDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    // ══════════════════════════════════════════════
+    //  🔧 Firebase 설정 — 본인 프로젝트 값으로 교체하세요
+    //  Firebase 콘솔(console.firebase.google.com) →
+    //  프로젝트 설정 → 앱 추가 → 웹 → 설정 복사
+    // ══════════════════════════════════════════════
+    const firebaseConfig = {
+      apiKey:            "YOUR_API_KEY",
+      authDomain:        "YOUR_PROJECT.firebaseapp.com",
+      projectId:         "YOUR_PROJECT_ID",
+      storageBucket:     "YOUR_PROJECT.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId:             "YOUR_APP_ID"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db  = getFirestore(app);
+
+    // 전역 노출
+    window._db = db;
+    window._fbReady = true;
+    window._firestore = { doc, setDoc, getDoc, collection, onSnapshot, deleteDoc, query, where, getDocs };
+    document.dispatchEvent(new Event('firebase-ready'));
+  </script>
+
+
+
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap');
+
+  :root {
+    --bg: #f5f2ec;
+    --paper: #fefcf8;
+    --ink: #1a1612;
+    --ink-light: #5c5248;
+    --ink-faint: #a09890;
+    --accent: #c0392b;
+    --accent2: #2c5f8a;
+    --accent3: #2d7a4f;
+    --gold: #b8860b;
+    --border: #d4cfc8;
+    --border-dark: #8c8480;
+    --shadow: rgba(26,22,18,0.12);
+    --highlight: #fff8e7;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+  }
+
+  /* ===== HEADER ===== */
+  .app-header {
+    background: var(--ink);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 12px var(--shadow);
+  }
+
+  .header-title {
+    font-family: 'Noto Serif KR', serif;
+    color: #fefcf8;
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+
+  .header-title span {
+    color: var(--gold);
+    font-size: 0.75rem;
+    display: block;
+    font-weight: 300;
+    letter-spacing: 0.08em;
+    margin-top: 2px;
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .btn-save {
+    background: transparent;
+    border: 1px solid #fefcf8;
+    color: #fefcf8;
+    padding: 7px 16px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    font-family: 'Noto Sans KR', sans-serif;
+    transition: all 0.2s;
+  }
+
+  .btn-save:hover { background: rgba(254,252,248,0.15); }
+
+  .btn-pdf {
+    background: var(--accent);
+    border: none;
+    color: white;
+    padding: 7px 16px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-weight: 600;
+    transition: all 0.2s;
+  }
+
+  .btn-pdf:hover { background: #a93226; }
+
+  .save-indicator {
+    font-size: 0.72rem;
+    color: #a09890;
+    font-style: italic;
+  }
+
+  /* ===== PROGRESS ===== */
+  .progress-bar {
+    background: var(--border);
+    height: 3px;
+    position: sticky;
+    top: 57px;
+    z-index: 98;
+    transition: top 0.2s;
+  }
+
+  /* userBadge 표시 시 progressBar/stepNav 위치 조정 */
+  body.user-logged-in .progress-bar {
+    top: 85px;
+  }
+  body.user-logged-in .step-nav {
+    top: 88px;
+  }
+
+  .progress-fill {
+    background: linear-gradient(90deg, var(--accent), var(--gold));
+    height: 100%;
+    transition: width 0.4s ease;
+  }
+
+  /* ===== PAGE STEPS ===== */
+  .step-nav {
+    background: var(--paper);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    gap: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    position: sticky;
+    top: 60px;
+    z-index: 97;
+    transition: top 0.2s;
+  }
+
+  .step-nav::-webkit-scrollbar { display: none; }
+
+  .step-btn {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    padding: 8px 14px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 0.78rem;
+    color: var(--ink-faint);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .step-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    font-weight: 600;
+  }
+
+  .step-btn.completed {
+    color: var(--ink-light);
+  }
+
+  .step-btn.completed::before {
+    content: '✓ ';
+    color: var(--accent3);
+    font-size: 0.7rem;
+  }
+
+  /* ===== MAIN CONTENT ===== */
+  .main {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 32px 20px 80px;
+  }
+
+  /* ===== PAGE ===== */
+  .page { display: none; }
+  .page.active { display: block; animation: fadeIn 0.3s ease; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .page-header {
+    margin-bottom: 28px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid var(--ink);
+  }
+
+  .page-number {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 0.75rem;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .page-title {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.3;
+  }
+
+  .page-desc {
+    font-size: 0.85rem;
+    color: var(--ink-light);
+    margin-top: 8px;
+    line-height: 1.6;
+  }
+
+  /* ===== CARDS ===== */
+  .card {
+    background: var(--paper);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 4px var(--shadow);
+  }
+
+  .card-title {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-title::before {
+    content: '';
+    width: 3px;
+    height: 16px;
+    background: var(--accent);
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  /* ===== FORM FIELDS ===== */
+  .field-group {
+    margin-bottom: 18px;
+  }
+
+  .field-group:last-child { margin-bottom: 0; }
+
+  label {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--ink-light);
+    margin-bottom: 6px;
+    letter-spacing: 0.02em;
+  }
+
+  label .req {
+    color: var(--accent);
+    margin-left: 3px;
+  }
+
+  label .opt {
+    font-weight: 300;
+    color: var(--ink-faint);
+    font-size: 0.75rem;
+    margin-left: 6px;
+  }
+
+  input[type="text"], input[type="email"], textarea, select {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 10px 14px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 16px; /* iOS 자동줌 방지: 반드시 16px 이상 */
+    color: var(--ink);
+    background: #fff;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+  }
+
+  input[type="text"]:focus, textarea:focus, select:focus {
+    border-color: var(--accent2);
+    box-shadow: 0 0 0 3px rgba(44,95,138,0.1);
+  }
+
+  textarea {
+    resize: vertical;
+    line-height: 1.7;
+    min-height: 80px;
+  }
+
+  .textarea-lg { min-height: 160px; }
+  .textarea-xl { min-height: 240px; }
+  .textarea-xxl { min-height: 360px; }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+  }
+
+  @media(max-width: 600px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  }
+
+  /* ===== RADIO / CHECK GRID ===== */
+  .option-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .option-chip {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.18s;
+    background: #fff;
+    user-select: none;
+  }
+
+  .option-chip input[type="radio"],
+  .option-chip input[type="checkbox"] {
+    width: auto;
+    display: none;
+  }
+
+  .option-chip.selected {
+    background: var(--ink);
+    color: #fefcf8;
+    border-color: var(--ink);
+  }
+
+  .option-chip:hover:not(.selected) {
+    border-color: var(--ink-light);
+    background: var(--highlight);
+  }
+
+  /* custom with text input */
+  .option-chip.has-input {
+    padding: 6px 12px;
+    border-radius: 20px;
+  }
+
+  .option-chip.has-input input[type="text"] {
+    border: none;
+    background: transparent;
+    padding: 2px 0;
+    font-size: 0.85rem;
+    width: 100px;
+    min-width: 60px;
+    outline: none;
+    box-shadow: none;
+  }
+
+  .option-chip.has-input input[type="text"]::placeholder {
+    color: var(--ink-faint);
+  }
+
+  .option-chip.selected.has-input input[type="text"] {
+    color: #fefcf8;
+  }
+
+  .option-chip.selected.has-input input[type="text"]::placeholder {
+    color: rgba(254,252,248,0.5);
+  }
+
+  /* ===== HASHTAG ===== */
+  /* ===== KEYWORD GRID ===== */
+  .keyword-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .keyword-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .keyword-item:focus-within {
+    border-color: var(--accent2);
+    box-shadow: 0 0 0 3px rgba(44,95,138,0.1);
+  }
+
+  .keyword-num {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--accent);
+    min-width: 16px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .keyword-input {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    padding: 4px 0 !important;
+    width: 100% !important;
+    font-size: 16px; /* iOS 자동줌 방지 */
+    font-family: 'Noto Sans KR', sans-serif;
+    background: transparent !important;
+    color: var(--ink);
+  }
+
+  .keyword-input::placeholder { color: var(--ink-faint); }
+
+  @media(max-width: 600px) {
+    .keyword-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ===== QUESTION ACCORDION ===== */
+  .question-block {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+
+  .question-header {
+    background: var(--paper);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .question-number {
+    background: var(--ink);
+    color: #fefcf8;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.78rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .question-title-display {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--ink);
+    flex: 1;
+  }
+
+  .question-body {
+    padding: 20px;
+    background: #fff;
+  }
+
+  /* ===== FILE UPLOAD ===== */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 28px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: #fff;
+  }
+
+  .upload-zone:hover {
+    border-color: var(--accent2);
+    background: var(--highlight);
+  }
+
+  .upload-zone.dragover {
+    border-color: var(--accent2);
+    background: rgba(44,95,138,0.05);
+  }
+
+  .upload-icon {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    color: var(--ink-faint);
+  }
+
+  .upload-text {
+    font-size: 0.85rem;
+    color: var(--ink-light);
+    line-height: 1.6;
+  }
+
+  .upload-text strong { color: var(--accent2); }
+
+  .upload-list {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .upload-item {
+    background: var(--highlight);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.83rem;
+  }
+
+  .upload-item button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--accent);
+    font-size: 0.8rem;
+  }
+
+  /* ===== TOC ===== */
+  .toc-box {
+    background: var(--paper);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-top: 16px;
+  }
+
+  .toc-title {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .toc-item {
+    padding: 5px 0;
+    font-size: 0.85rem;
+    color: var(--ink-light);
+    display: flex;
+    gap: 10px;
+    line-height: 1.5;
+  }
+
+  .toc-item .num { color: var(--accent); font-weight: 600; flex-shrink: 0; }
+  .toc-sub { padding-left: 20px; font-size: 0.8rem; color: var(--ink-faint); }
+
+  /* ===== SUMMARY PREVIEW ===== */
+  .preview-section {
+    background: var(--paper);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+  }
+
+  .preview-section h3 {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed var(--border);
+  }
+
+  .preview-item {
+    font-size: 0.85rem;
+    line-height: 1.8;
+    color: var(--ink-light);
+    white-space: pre-wrap;
+  }
+
+  .preview-item strong {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  /* ===== NAVIGATION ===== */
+  .page-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 28px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+  }
+
+  .btn-nav {
+    background: var(--paper);
+    border: 1px solid var(--border);
+    color: var(--ink);
+    padding: 10px 24px;
+    border-radius: 5px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 500;
+  }
+
+  .btn-nav:hover:not(:disabled) {
+    background: var(--ink);
+    color: #fefcf8;
+    border-color: var(--ink);
+  }
+
+  .btn-nav:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  .btn-nav-primary {
+    background: var(--ink);
+    color: #fefcf8;
+    border-color: var(--ink);
+  }
+
+  .btn-nav-primary:hover:not(:disabled) {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .page-indicator {
+    font-size: 0.8rem;
+    color: var(--ink-faint);
+    font-family: 'Noto Serif KR', serif;
+  }
+
+  /* ===== FINAL PAGE ===== */
+  .final-report {
+    background: var(--paper);
+    border: 2px solid var(--ink);
+    border-radius: 8px;
+    padding: 40px;
+    margin-bottom: 24px;
+    font-family: 'Noto Serif KR', serif;
+  }
+
+  .final-report-title {
+    text-align: center;
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+    letter-spacing: 0.04em;
+  }
+
+  .final-report-subtitle {
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--ink-light);
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid var(--ink);
+  }
+
+  .final-section {
+    margin-bottom: 24px;
+  }
+
+  .final-section-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--ink);
+    padding: 8px 14px;
+    background: var(--ink);
+    color: #fefcf8;
+    border-radius: 4px;
+    margin-bottom: 12px;
+    letter-spacing: 0.04em;
+  }
+
+  .final-content {
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 0.88rem;
+    line-height: 1.9;
+    color: var(--ink);
+    white-space: pre-wrap;
+    padding: 0 4px;
+  }
+
+  .final-info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .final-info-item {
+    text-align: center;
+    padding: 12px;
+    background: var(--bg);
+    border-radius: 5px;
+  }
+
+  .final-info-item .label {
+    font-size: 0.72rem;
+    color: var(--ink-faint);
+    margin-bottom: 4px;
+  }
+
+  .final-info-item .value {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  /* ===== TOAST ===== */
+  .toast {
+    position: fixed;
+    bottom: 28px;
+    right: 24px;
+    background: var(--ink);
+    color: #fefcf8;
+    padding: 12px 20px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    transform: translateY(60px);
+    opacity: 0;
+    transition: all 0.3s;
+    z-index: 999;
+    box-shadow: 0 4px 16px var(--shadow);
+    max-width: 320px;
+    line-height: 1.5;
+    cursor: pointer;
+    word-break: keep-all;
+  }
+
+  .toast.show {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  .toast.success { border-left: 4px solid var(--accent3); }
+  .toast.error {
+    border-left: 4px solid var(--accent);
+    background: #2a1410;
+  }
+
+  /* ===== CHAR COUNT ===== */
+  .char-count {
+    text-align: right;
+    font-size: 0.72rem;
+    color: var(--ink-faint);
+    margin-top: 4px;
+  }
+
+  .char-count.over { color: var(--accent); font-weight: 600; }
+
+  /* ===== TABS ===== */
+  .tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+
+  .tab-btn {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 8px 16px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 0.82rem;
+    color: var(--ink-faint);
+    cursor: pointer;
+    transition: all 0.18s;
+    margin-bottom: -1px;
+  }
+
+  .tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* ===== TITLE RECOMMEND ===== */
+  .recommend-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.18s;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .recommend-card:hover {
+    border-color: var(--accent2);
+    background: var(--highlight);
+  }
+
+  .recommend-card .pick-btn {
+    font-size: 0.72rem;
+    color: var(--accent2);
+    white-space: nowrap;
+    font-weight: 600;
+  }
+
+  /* ===== INFO BANNER ===== */
+  .info-banner {
+    background: var(--highlight);
+    border: 1px solid #d4b85a;
+    border-radius: 6px;
+    padding: 12px 16px;
+    font-size: 0.82rem;
+    color: var(--gold);
+    margin-bottom: 18px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    line-height: 1.6;
+  }
+
+  .info-banner::before { content: 'ℹ'; flex-shrink: 0; margin-top: 1px; }
+
+  /* ===== REFERENCE ROW ===== */
+  .ref-row {
+    display: grid;
+    grid-template-columns: 28px 1fr auto auto;
+    gap: 8px;
+    align-items: flex-start;
+    margin-bottom: 12px;
+    animation: fadeIn 0.2s ease;
+  }
+
+  .ref-num {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--accent);
+    padding-top: 11px;
+    text-align: right;
+  }
+
+  .ref-input-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .ref-url-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .ref-url-row input {
+    flex: 1;
+    font-size: 0.83rem;
+    padding: 9px 12px;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    font-family: 'Noto Sans KR', sans-serif;
+    color: var(--ink);
+    background: #fff;
+  }
+
+  .ref-url-row input:focus {
+    border-color: var(--accent2);
+    box-shadow: 0 0 0 3px rgba(44,95,138,0.1);
+  }
+
+  
+
+  
+
+  
+
+  .ref-manual {
+    border: 1px dashed var(--border);
+    border-radius: 5px;
+    padding: 8px 12px;
+    font-size: 0.82rem;
+    min-height: 44px;
+    resize: none;
+    font-family: 'Noto Sans KR', sans-serif;
+    color: var(--ink);
+    background: #fff;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.2s;
+    line-height: 1.6;
+  }
+
+  .ref-manual:focus {
+    border-color: var(--accent2);
+    border-style: solid;
+  }
+
+  .btn-ref-del {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--ink-faint);
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 9px;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+
+  .btn-ref-del:hover { background: #fde8e8; border-color: var(--accent); color: var(--accent); }
+
+  
+
+  .ref-tab-bar {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+  }
+
+  .ref-tab {
+    font-size: 0.75rem;
+    padding: 5px 12px;
+    border: none;
+    background: none;
+    color: var(--ink-faint);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    font-family: 'Noto Sans KR', sans-serif;
+    transition: all 0.15s;
+    margin-bottom: -1px;
+  }
+
+  .ref-tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+
+  @media(max-width: 600px) {
+    .ref-row { grid-template-columns: 22px 1fr auto; }
+  }
+
+  /* ===== HISTORY BUTTON ===== */
+  .btn-history {
+    background: transparent;
+    border: 1px solid rgba(254,252,248,0.35);
+    color: #fefcf8;
+    padding: 7px 13px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    font-family: 'Noto Sans KR', sans-serif;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .btn-history:hover { background: rgba(254,252,248,0.15); }
+  .btn-history-label { font-size: 0.78rem; }
+
+  /* ===== DRAWER OVERLAY ===== */
+  .drawer-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(26,22,18,0.45);
+    z-index: 200;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+    backdrop-filter: blur(2px);
+  }
+  .drawer-overlay.show { opacity: 1; pointer-events: all; }
+
+  /* ===== HISTORY DRAWER ===== */
+  .history-drawer {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 380px;
+    max-width: 96vw;
+    height: 100dvh;
+    background: var(--paper);
+    z-index: 201;
+    box-shadow: -6px 0 32px rgba(26,22,18,0.18);
+    transform: translateX(100%);
+    transition: transform 0.35s cubic-bezier(0.32,0,0.16,1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .history-drawer.open { transform: translateX(0); }
+
+  .drawer-header {
+    background: var(--ink);
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  .drawer-title {
+    font-family: 'Noto Serif KR', serif;
+    color: #fefcf8;
+    font-size: 1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .drawer-close {
+    background: none;
+    border: none;
+    color: rgba(254,252,248,0.7);
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: color 0.15s, background 0.15s;
+  }
+  .drawer-close:hover { color: #fefcf8; background: rgba(255,255,255,0.1); }
+
+  .drawer-desc {
+    padding: 12px 20px 0;
+    font-size: 0.78rem;
+    color: var(--ink-faint);
+    line-height: 1.6;
+    flex-shrink: 0;
+  }
+
+  .drawer-actions {
+    padding: 10px 20px 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .drawer-clear-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--ink-light);
+    padding: 6px 14px;
+    border-radius: 4px;
+    font-size: 0.78rem;
+    cursor: pointer;
+    font-family: 'Noto Sans KR', sans-serif;
+    transition: all 0.18s;
+  }
+  .drawer-clear-btn:hover { border-color: var(--accent); color: var(--accent); background: #fde8e8; }
+
+  /* ===== HISTORY LIST ===== */
+  .history-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .history-list::-webkit-scrollbar { width: 5px; }
+  .history-list::-webkit-scrollbar-track { background: transparent; }
+  .history-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+  .history-item {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: all 0.18s;
+    position: relative;
+    animation: fadeIn 0.22s ease;
+  }
+  .history-item:hover { border-color: var(--accent2); box-shadow: 0 2px 10px rgba(44,95,138,0.12); transform: translateY(-1px); }
+
+  .history-item-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .history-time {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.3;
+  }
+
+  .history-time-sub {
+    font-size: 0.72rem;
+    color: var(--ink-faint);
+    font-weight: 400;
+    font-family: 'Noto Sans KR', sans-serif;
+    display: block;
+    margin-top: 2px;
+  }
+
+  .history-badge {
+    background: var(--accent2);
+    color: #fff;
+    font-size: 0.66rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    white-space: nowrap;
+    font-weight: 600;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .history-badge.auto { background: var(--accent3); }
+  .history-badge.latest { background: var(--accent); }
+
+  .history-preview {
+    font-size: 0.78rem;
+    color: var(--ink-light);
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .history-meta {
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--border);
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .history-meta-info {
+    font-size: 0.72rem;
+    color: var(--ink-faint);
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .history-del-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--ink-faint);
+    font-size: 0.75rem;
+    padding: 3px 8px;
+    border-radius: 4px;
+    transition: all 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .history-del-btn:hover { color: var(--accent); background: #fde8e8; }
+
+  .history-empty {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--ink-faint);
+    font-size: 0.88rem;
+    line-height: 1.8;
+    display: none;
+  }
+  .history-empty.show { display: block; }
+
+  /* ===== MODAL ===== */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(26,22,18,0.55);
+    z-index: 300;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(3px);
+  }
+  .modal-overlay.show { display: flex; }
+
+  .modal-box {
+    background: var(--paper);
+    border-radius: 12px;
+    padding: 32px 28px;
+    max-width: 360px;
+    width: 90vw;
+    box-shadow: 0 16px 48px rgba(26,22,18,0.25);
+    animation: fadeIn 0.25s ease;
+    text-align: center;
+  }
+
+  .modal-icon { font-size: 2rem; margin-bottom: 12px; }
+
+  .modal-title {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 10px;
+  }
+
+  .modal-desc {
+    font-size: 0.85rem;
+    color: var(--ink-light);
+    line-height: 1.7;
+    margin-bottom: 22px;
+  }
+
+  .modal-actions { display: flex; gap: 10px; justify-content: center; }
+
+  .modal-btn {
+    padding: 10px 28px;
+    border-radius: 6px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.18s;
+  }
+  .modal-cancel { background: var(--bg); color: var(--ink-light); border: 1px solid var(--border); }
+  .modal-cancel:hover { background: var(--border); }
+  .modal-confirm { background: var(--accent2); color: #fff; }
+  .modal-confirm:hover { background: #1e4d75; }
+
+  /* ===== FLOATING SAVE BTN (mobile) ===== */
+  .fab-save {
+    display: none;
+    position: fixed;
+    bottom: 24px;
+    right: 20px;
+    background: var(--ink);
+    color: #fefcf8;
+    border: none;
+    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+    font-size: 1.1rem;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(26,22,18,0.35);
+    z-index: 90;
+    transition: all 0.2s;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  .fab-save:hover { background: var(--accent); transform: translateY(-2px); }
+
+  @media(max-width: 600px) {
+    .fab-save { display: flex; }
+    .btn-history-label { display: none; }
+    /* 모바일 헤더: saveIndicator·임시저장 텍스트 숨김 */
+    .save-indicator { display: none; }
+    .btn-save { display: none; }
+    /* PDF 버튼 아이콘만 */
+    .btn-pdf { padding: 7px 10px; font-size: 0.78rem; }
+  }
+
+  /* ===== BODY HINT BOX ===== */
+  .body-hint-box {
+    background: var(--highlight);
+    border: 1px solid #d4b85a;
+    border-left: 3px solid var(--gold);
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-top: 4px;
+  }
+  .body-hint-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+  }
+  .body-hint-content {
+    font-size: 0.84rem;
+    color: var(--ink-light);
+    line-height: 1.65;
+    white-space: pre-wrap;
+  }
+  .body-hint-content.empty {
+    color: var(--ink-faint);
+    font-style: italic;
+  }
+
+  /* ===== ACTION BUTTON (no-ai version) ===== */
+  .btn-action {
+    background: var(--ink-light);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    font-size: 0.88rem;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-action:hover { background: var(--ink); }
+  .btn-action-primary { background: var(--accent); }
+  .btn-action-primary:hover { background: #a93226; }
+
+  /* Mobile adjustments */
+  @media(max-width: 600px) {
+    .main { padding: 20px 12px 80px; }
+    .card { padding: 16px; }
+    .final-report { padding: 20px; }
+    .final-info-grid { grid-template-columns: 1fr 1fr; }
+    .app-header { padding: 10px 14px; }
+    .header-title { font-size: 0.95rem; }
+    .btn-save, .btn-pdf { padding: 6px 12px; font-size: 0.75rem; }
+    .page-title { font-size: 1.3rem; }
+  }
+  /* ===== iOS Safari 전용 수정 ===== */
+  /* 버튼 탭 하이라이트 제거 */
+  button, .btn-nav, .btn-save, .btn-pdf, .btn-history,
+  .option-chip, .step-btn, .fab-save, .btn-action {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  /* iOS safe-area (홈바 영역 침범 방지) */
+  .app-header {
+    padding-top: max(14px, env(safe-area-inset-top));
+    padding-left: max(24px, env(safe-area-inset-left));
+    padding-right: max(24px, env(safe-area-inset-right));
+  }
+
+  .main {
+    padding-bottom: max(80px, calc(80px + env(safe-area-inset-bottom)));
+  }
+
+  .fab-save {
+    bottom: max(24px, calc(24px + env(safe-area-inset-bottom)));
+    right: max(20px, calc(20px + env(safe-area-inset-right)));
+  }
+
+  /* iOS에서 textarea 기본 스타일 제거 */
+  textarea {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  /* iOS에서 input 기본 스타일 제거 */
+  input[type="text"] {
+    -webkit-appearance: none;
+    appearance: none;
+    border-radius: 5px;
+  }
+
+  /* 스크롤 관성 부드럽게 */
+  .main, .history-list, .step-nav {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* 드로어 스크롤 */
+  .history-list {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* iOS에서 position:sticky 헤더 올바르게 */
+  .app-header, .progress-bar {
+    position: -webkit-sticky;
+    position: sticky;
+  }</style>
+</head>
+<body>
+
+<!-- ===== 상단 사용자 표시 (헤더 아래) ===== -->
+<div id="userBadge" style="
+  display:none;
+  background:#2a2520;
+  color:rgba(254,252,248,0.85);
+  padding:5px 16px;
+  font-size:0.75rem;
+  text-align:center;
+  letter-spacing:0.02em;
+  border-bottom:1px solid rgba(255,255,255,0.08);
+  position:sticky;
+  top:57px;
+  z-index:99;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+">
+</div>
+
+<!-- HEADER -->
+<header class="app-header">
+  <div class="header-title">
+    탐구보고서 작성 폼
+    <span>오프라인 버전 · Research Report Form</span>
+  </div>
+  <div class="header-actions">
+    <span class="save-indicator" id="saveIndicator">미저장</span>
+    <button class="btn-history" onclick="openHistory()" title="저장 이력 보기">🕓 <span class="btn-history-label">이력</span></button>
+    <button class="btn-save" onclick="saveData()">💾 임시저장</button>
+    <button class="btn-pdf" onclick="goToFinalPage()">📄 PDF</button>
+  </div>
+</header>
+
+<!-- ===== HISTORY DRAWER ===== -->
+<div class="drawer-overlay" id="drawerOverlay" onclick="closeHistory()"></div>
+<aside class="history-drawer" id="historyDrawer">
+  <div class="drawer-header">
+    <div class="drawer-title">
+      <span>🕓</span> 임시저장 이력
+    </div>
+    <button class="drawer-close" onclick="closeHistory()">✕</button>
+  </div>
+  <div class="drawer-desc">최근 30개까지 저장됩니다. 항목을 클릭하면 해당 시점으로 복원합니다.</div>
+  <div class="drawer-actions">
+    <button class="drawer-clear-btn" onclick="clearAllHistory()">🗑 전체 삭제</button>
+  </div>
+  <div class="history-list" id="historyList"></div>
+  <div class="history-empty" id="historyEmpty">저장된 이력이 없습니다.<br><small>💾 임시저장 버튼을 눌러 저장해 보세요.</small></div>
+</aside>
+
+<!-- ===== RESTORE CONFIRM MODAL ===== -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box">
+    <div class="modal-icon">⚠️</div>
+    <div class="modal-title">이 시점으로 복원할까요?</div>
+    <div class="modal-desc" id="modalDesc"></div>
+    <div class="modal-actions">
+      <button class="modal-btn modal-cancel" onclick="closeModal()">취소</button>
+      <button class="modal-btn modal-confirm" id="modalConfirmBtn">복원</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROGRESS -->
+<div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+
+<!-- STEP NAV -->
+<nav class="step-nav" id="stepNav">
+  <button class="step-btn active" onclick="goToPage(0)">① 기본정보</button>
+  <button class="step-btn" onclick="goToPage(1)">② 탐구유형·교과</button>
+  <button class="step-btn" onclick="goToPage(2)">③ 탐구질문</button>
+  <button class="step-btn" onclick="goToPage(3)">④ 주제·서론</button>
+  <button class="step-btn" onclick="goToPage(4)">⑤ 본론</button>
+  <button class="step-btn" onclick="goToPage(5)">⑥ 결론</button>
+  <button class="step-btn" onclick="goToPage(6)">⑦ 생기부 예시</button>
+  <button class="step-btn" onclick="goToPage(7)">⑧ 최종 보고서</button>
+</nav>
+
+<main class="main">
+
+<!-- ==================== PAGE 1 ==================== -->
+<div class="page active" id="page-0">
+  <div class="page-header">
+    <div class="page-number">PAGE 01 / 08</div>
+    <h1 class="page-title">기본 정보 입력</h1>
+    <p class="page-desc">학생의 기본 정보와 희망 계열을 입력해 주세요. 이 정보는 PDF 파일명 구성에 사용됩니다.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">학생 정보</div>
+    <div class="grid-3">
+      <div class="field-group">
+        <label>학교명</label>
+        <input type="text" id="school" placeholder="○○고등학교" oninput="saveAutoField()">
+      </div>
+      <div class="field-group">
+        <label>학번 <span style="font-size:0.72rem;color:var(--ink-faint);">로그인 정보 자동 입력</span></label>
+        <input type="text" id="studentId" placeholder="로그인 후 자동 입력"
+          
+          oninput="saveAutoField()">
+      </div>
+      <div class="field-group">
+        <label>이름</label>
+        <input type="text" id="studentName" placeholder="홍길동" oninput="saveAutoField()">
+      </div>
+    </div>
+    <div class="info-banner" style="margin-top:14px;margin-bottom:0;">
+      PDF 저장 시 파일명은 <strong style="color:var(--gold);margin:0 4px;">학교_학번_이름.pdf</strong> 형식으로 자동 생성됩니다.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">희망 계열 선택</div>
+    <div class="field-group">
+      <label>계열</label>
+      <div class="option-grid" id="majorGrid">
+        <button type="button" class="option-chip" onclick="selectMajor(this,'인문')">인문</button>
+        <button type="button" class="option-chip" onclick="selectMajor(this,'사회')">사회</button>
+        <button type="button" class="option-chip" onclick="selectMajor(this,'공학')">공학</button>
+        <button type="button" class="option-chip" onclick="selectMajor(this,'자연')">자연</button>
+        <button type="button" class="option-chip" onclick="selectMajor(this,'보건')">보건</button>
+        <button type="button" class="option-chip" onclick="selectMajor(this,'교육')">교육</button>
+        <button type="button" class="option-chip" onclick="selectMajor(this,'예체능')">예체능</button>
+        <button type="button" class="option-chip" onclick="selectMajor(this,'의예')">의예</button>
+        <button type="button" class="option-chip has-input" id="chip-etc" onclick="selectMajor(this,'기타')">
+          기타:&nbsp;<input type="text" id="majorEtc" placeholder="직접 입력" onclick="event.stopPropagation()" oninput="saveAutoField()" style="width:90px;border:none;background:transparent;outline:none;font-family:inherit;font-size:0.85rem;">
+        </button>
+      </div>
+    </div>
+    <div class="field-group" style="margin-top:18px;">
+      <label>희망 학과 <span class="opt">(선택)</span></label>
+      <input type="text" id="desiredDept" placeholder="예: 컴퓨터공학과, 의학과, 교육학과 등" oninput="saveAutoField()">
+    </div>
+  </div>
+
+  <div class="page-nav">
+    <button class="btn-nav" disabled>← 이전</button>
+    <span class="page-indicator">1 / 8</span>
+    <button class="btn-nav btn-nav-primary" onclick="nextPage()">다음 →</button>
+  </div>
+</div>
+
+<!-- ==================== PAGE 2 ==================== -->
+<div class="page" id="page-1">
+  <div class="page-header">
+    <div class="page-number">PAGE 02 / 08</div>
+    <h1 class="page-title">탐구 유형 & 교과 연계</h1>
+    <p class="page-desc">탐구 활동의 유형을 선택하고, 교과와 연계되는 키워드를 추출해 주세요.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">탐구 활동 유형</div>
+    <div class="option-grid" id="actTypeGrid">
+      <button type="button" class="option-chip" onclick="toggleActType(this,'자율자치')">자율자치</button>
+      <button type="button" class="option-chip" onclick="toggleActType(this,'진로')">진로</button>
+      <button type="button" class="option-chip" onclick="toggleActType(this,'교과')">교과</button>
+      <button type="button" class="option-chip" onclick="toggleActType(this,'기타')">기타</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">이전 학년 탐구주제 <span style="font-size:0.8rem;font-weight:400;color:var(--ink-faint);margin-left:6px;">(선택)</span></div>
+    <textarea id="prevTopics" placeholder="이전 학년에서 진행했던 탐구 주제가 있다면 간략히 적어주세요." style="min-height:80px;" oninput="saveAutoField()"></textarea>
+  </div>
+
+  <div class="card">
+    <div class="card-title">교과 연계 정보</div>
+    <div class="info-banner">현재 배우고 있는 교과 내용을 바탕으로 탐구주제와의 연계성을 기록하세요.</div>
+    <div class="grid-2">
+      <div class="field-group">
+        <label>교과명</label>
+        <input type="text" id="subjectName" placeholder="예: 생명과학Ⅱ, 사회문화, 수학Ⅰ 등" oninput="saveAutoField()">
+      </div>
+      <div class="field-group">
+        <label>단원명</label>
+        <input type="text" id="unitName" placeholder="예: Ⅲ. 세포와 생명의 연속성" oninput="saveAutoField()">
+      </div>
+    </div>
+    <div class="field-group">
+      <label>단원 요약</label>
+      <textarea id="unitSummary" class="textarea-lg" placeholder="해당 단원의 주요 내용을 요약해 주세요. (학습 목표, 핵심 개념, 주요 원리 등)" oninput="saveAutoField()"></textarea>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">교과 키워드 <span style="font-size:0.8rem;font-weight:400;color:var(--ink-faint);margin-left:6px;">(선택, 최대 10개)</span></div>
+    <div class="info-banner">교과 내용에서 관심 있는 키워드를 자유롭게 입력하세요.</div>
+    <div class="keyword-grid" id="keywordGrid">
+      <div class="keyword-item"><span class="keyword-num">1</span><input type="text" class="keyword-input" id="kw0" placeholder="키워드 입력" maxlength="20" oninput="saveAutoField()"></div>
+      <div class="keyword-item"><span class="keyword-num">2</span><input type="text" class="keyword-input" id="kw1" placeholder="키워드 입력" maxlength="20" oninput="saveAutoField()"></div>
+      <div class="keyword-item"><span class="keyword-num">3</span><input type="text" class="keyword-input" id="kw2" placeholder="키워드 입력" maxlength="20" oninput="saveAutoField()"></div>
+      <div class="keyword-item"><span class="keyword-num">4</span><input type="text" class="keyword-input" id="kw3" placeholder="키워드 입력" maxlength="20" oninput="saveAutoField()"></div>
+      <div class="keyword-item"><span class="keyword-num">5</span><input type="text" class="keyword-input" id="kw4" placeholder="키워드 입력" maxlength="20" oninput="saveAutoField()"></div>
+      <div class="keyword-item"><span class="keyword-num">6</span><input type="text" class="keyword-input" id="kw5" placeholder="키워드 입력" maxlength="20" oninput="saveAutoField()"></div>
+      <div class="keyword-item"><span class="keyword-num">7</span><input type="text" class="keyword-input" id="kw6" placeholder="키워드 입력" maxlength="20" oninput="saveAutoField()"></div>
+      <div class="keyword-item"><span class="keyword-num">8</span><input type="text" class="keyword-input" id="kw7" placeholder="키워드 입력" maxlength="20" oninput="saveAutoField()"></div>
+      <div class="keyword-item"><span class="keyword-num">9</span><input type="text" class="keyword-input" id="kw8" placeholder="키워드 입력" maxlength="20" oninput="saveAutoField()"></div>
+      <div class="keyword-item"><span class="keyword-num">10</span><input type="text" class="keyword-input" id="kw9" placeholder="키워드 입력" maxlength="20" oninput="saveAutoField()"></div>
+    </div>
+  </div>
+
+  <div class="page-nav">
+    <button class="btn-nav" onclick="prevPage()">← 이전</button>
+    <span class="page-indicator">2 / 8</span>
+    <button class="btn-nav btn-nav-primary" onclick="nextPage()">다음 →</button>
+  </div>
+</div>
+
+<!-- ==================== PAGE 3 ==================== -->
+<div class="page" id="page-2">
+  <div class="page-header">
+    <div class="page-number">PAGE 03 / 08</div>
+    <h1 class="page-title">탐구 질문 작성</h1>
+    <p class="page-desc">교과 키워드에서 출발한 탐구 질문 3가지를 작성해 주세요. 이 질문들은 본론의 대주제가 됩니다. 질문은 최대 10개까지 추가할 수 있습니다.</p>
+  </div>
+
+  <div id="questions-container">
+  </div>
+
+  <button id="addQuestionBtn" type="button" onclick="addQuestion()"
+    style="display:block;width:100%;padding:14px;margin:12px 0 20px;
+    background:var(--paper);border:2px dashed var(--border);
+    border-radius:10px;font-size:0.88rem;font-weight:600;
+    color:var(--ink-light);cursor:pointer;font-family:inherit;
+    transition:all 0.2s;">
+    + 탐구질문 추가 (현재 3개 / 최대 10개)
+  </button>
+
+  <div class="page-nav">
+    <button class="btn-nav" onclick="prevPage()">← 이전</button>
+    <span class="page-indicator">3 / 8</span>
+    <button class="btn-nav btn-nav-primary" onclick="nextPage()">다음 →</button>
+  </div>
+</div>
+
+<!-- ==================== PAGE 4 ==================== -->
+<div class="page" id="page-3">
+  <div class="page-header">
+    <div class="page-number">PAGE 04 / 08</div>
+    <h1 class="page-title">탐구주제 확정 & 서론</h1>
+    <p class="page-desc">최종 탐구주제를 확정하고, 목차 구성과 서론을 작성하세요.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">최종 탐구주제</div>
+    <div class="field-group">
+      <label>탐구 제목</label>
+      <input type="text" id="finalTitle" placeholder="탐구 제목을 직접 작성해 주세요." oninput="saveAutoField()">
+    </div>
+
+  </div>
+
+  <div class="card">
+    <div class="card-title">목차 구성</div>
+    <div class="info-banner" style="margin-bottom:14px;">
+      서론 → 본론 → 결론 순서로 목차를 직접 작성해 주세요.
+    </div>
+    <div class="field-group">
+      <label>목차 직접 입력</label>
+      <textarea id="tocManual" class="textarea-lg" oninput="saveAutoField()"
+        placeholder="1. 서론&#10;  1.1 탐구의 목적&#10;  1.2 탐구의 필요성&#10;2. 본론&#10;  2.1 (질문 1 소제목)&#10;  2.2 (질문 2 소제목)&#10;  2.3 (질문 3 소제목)&#10;3. 결론&#10;  3.1 요약&#10;  3.2 제언&#10;  3.3 느낀점 및 향상된 역량&#10;  3.4 추후 연계 탐구주제"></textarea>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">서론 — 탐구의 목적</div>
+    <div class="field-group">
+      <textarea id="purposeText" class="textarea-xl" placeholder="이 탐구를 통해 무엇을 알고자 하는지, 탐구의 목적을 서술해 주세요.&#10;&#10;예시: 본 탐구는 ○○에 관심을 갖게 된 계기로부터 시작되어..."></textarea>
+    </div>
+
+  </div>
+
+  <div class="card">
+    <div class="card-title">서론 — 탐구의 필요성</div>
+    <div class="field-group">
+      <textarea id="necessityText" class="textarea-xl" placeholder="왜 이 주제를 탐구해야 하는지, 탐구의 필요성과 의의를 서술해 주세요.&#10;&#10;예시: 현대 사회에서 ○○의 중요성이 부각되는 상황에서..."></textarea>
+    </div>
+
+  </div>
+
+  <div class="page-nav">
+    <button class="btn-nav" onclick="prevPage()">← 이전</button>
+    <span class="page-indicator">4 / 8</span>
+    <button class="btn-nav btn-nav-primary" onclick="nextPage()">다음 →</button>
+  </div>
+</div>
+
+<!-- ==================== PAGE 5 ==================== -->
+<div class="page" id="page-4">
+  <div class="page-header">
+    <div class="page-number">PAGE 05 / 08</div>
+    <h1 class="page-title">본론 작성</h1>
+    <p class="page-desc">탐구질문을 바탕으로 각 대주제별 본론을 작성하세요. 질문을 추가하면 본론도 자동으로 추가됩니다.</p>
+  </div>
+
+  <div id="body-container">
+    <!-- JS로 동적 생성 -->
+  </div>
+
+  <div class="page-nav">
+    <button class="btn-nav" onclick="prevPage()">← 이전</button>
+    <span class="page-indicator">5 / 8</span>
+    <button class="btn-nav btn-nav-primary" onclick="nextPage()">다음 →</button>
+  </div>
+</div>
+
+<!-- ==================== PAGE 6 ==================== -->
+<div class="page" id="page-5">
+  <div class="page-header">
+    <div class="page-number">PAGE 06 / 08</div>
+    <h1 class="page-title">결론 작성</h1>
+    <p class="page-desc">본론의 내용을 바탕으로 결론을 작성하세요.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">본론 요약</div>
+    <div class="field-group">
+      <label>본론에서 탐구한 내용을 간략히 요약해 주세요.</label>
+      <textarea id="conclusionSummaryContent" class="textarea-lg" placeholder="탐구를 통해 알게 된 핵심 내용, 발견한 사실, 결론 등을 정리해 주세요." oninput="saveAutoField()"></textarea>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">제언</div>
+    <textarea id="suggestion" class="textarea-lg" placeholder="탐구를 통해 제안하고 싶은 내용이나 개선점을 작성해 주세요." oninput="saveAutoField()"></textarea>
+  </div>
+
+  <div class="card">
+    <div class="card-title">느낀점 / 알게 된 점</div>
+    <textarea id="reflection" class="textarea-lg" placeholder="탐구 과정에서 느낀 점, 새롭게 알게 된 사실 등을 구체적으로 적어주세요." oninput="saveAutoField()"></textarea>
+  </div>
+
+  <div class="card">
+    <div class="card-title">향상된 역량</div>
+    <textarea id="competency" class="textarea-lg" placeholder="이번 탐구를 통해 어떤 역량이 향상되었는지 적어주세요.&#10;예: 자료 수집 및 분석 능력, 비판적 사고력, 논리적 글쓰기 능력 등" oninput="saveAutoField()"></textarea>
+  </div>
+
+  <div class="card">
+    <div class="card-title">추후 연계 탐구주제</div>
+    <textarea id="futureResearch" class="textarea-lg" placeholder="이번 탐구에서 확장하거나 심화 탐구하고 싶은 후속 주제를 작성해 주세요." oninput="saveAutoField()"></textarea>
+  </div>
+
+  <!-- ===== 참고문헌 ===== -->
+  <div class="card">
+    <div class="card-title">참고문헌</div>
+    <div class="info-banner" style="margin-bottom:16px;">
+      URL 링크를 입력하거나 직접 APA 형식으로 참고문헌을 작성해 주세요.
+    </div>
+
+    <!-- 3페이지 질문 링크 자동 반영 -->
+    <div id="refFromQuestions"></div>
+
+    <!-- 수동 추가 참고문헌 -->
+    <div id="refList"></div>
+    <button class="btn-action" onclick="addRefRow()" style="margin-top:4px;">＋ 참고문헌 추가</button>
+
+  </div>
+
+  <div class="page-nav">
+    <button class="btn-nav" onclick="prevPage()">← 이전</button>
+    <span class="page-indicator">6 / 8</span>
+    <button class="btn-nav btn-nav-primary" onclick="nextPage()">다음 →</button>
+  </div>
+</div>
+
+<!-- ==================== PAGE 7 ==================== -->
+<div class="page" id="page-6">
+  <div class="page-header">
+    <div class="page-number">PAGE 07 / 08</div>
+    <h1 class="page-title">학교생활기록부 예시 작성</h1>
+    <p class="page-desc">6페이지 결론 내용을 참고하여 학생부 기재 내용을 직접 작성하세요. (400자 이내)</p>
+  </div>
+
+  <div class="info-banner">학생부 세부능력 및 특기사항 기재를 위한 예시 문구입니다. 실제 선생님께서 수정·활용하시거나 참고자료로 사용하세요.</div>
+
+  <div class="card">
+    <div class="card-title">학생부 작성 참고사항</div>
+    <div class="info-banner" style="margin-bottom:0;">
+      아래 칸에 느낀점·향상된 역량·추후 연계 탐구주제를 참고하여 학생부 세부능력 및 특기사항 내용을 직접 작성하세요. 400자 이내로 작성하는 것을 권장합니다.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">나의 학생부 내용 작성</div>
+    <div class="field-group">
+      <label>위 예시를 참고하여 직접 작성해 주세요.</label>
+      <textarea id="myRecord" class="textarea-xl" placeholder="학생부 기재 내용을 직접 작성해 주세요. (400자 이내 권장)" maxlength="500" oninput="countChars(this,'recordMyCount');saveAutoField()"></textarea>
+      <div class="char-count" id="recordMyCount">0 / 400자</div>
+    </div>
+  </div>
+
+  <div class="page-nav">
+    <button class="btn-nav" onclick="prevPage()">← 이전</button>
+    <span class="page-indicator">7 / 8</span>
+    <button class="btn-nav btn-nav-primary" onclick="nextPage()">다음 →</button>
+  </div>
+</div>
+
+<!-- ==================== PAGE 8 (FINAL) ==================== -->
+<div class="page" id="page-7">
+  <div class="page-header">
+    <div class="page-number">PAGE 08 / 08</div>
+    <h1 class="page-title">최종 보고서 미리보기</h1>
+    <p class="page-desc">작성한 모든 내용을 확인하고 PDF로 다운로드하세요.</p>
+  </div>
+
+  <div style="display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap;">
+    <button class="btn-action btn-action-primary" onclick="downloadPDF()">📄 PDF 다운로드</button>
+    <button class="btn-action" onclick="buildFinalPreview()">🔄 미리보기 새로고침</button>
+  </div>
+
+  <div id="finalReportWrapper"></div>
+
+  <div class="page-nav">
+    <button class="btn-nav" onclick="prevPage()">← 이전</button>
+    <span class="page-indicator">8 / 8</span>
+    <button class="btn-nav" disabled>완료 ✓</button>
+  </div>
+</div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+<button class="fab-save" onclick="saveData()" title="임시저장">💾</button>
+
+<script>
+// ==================== iOS Safari 호환 유틸 ====================
+function safeScrollTop() {
+  try {
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  } catch(e) {
+    try { window.scrollTo(0, 0); } catch(_) {}
+  }
+  // iOS Safari 추가 대응
+  try { document.documentElement.scrollTop = 0; } catch(_) {}
+  try { document.body.scrollTop = 0; } catch(_) {}
+}
+
+// localStorage iOS Private Mode 대응
+function safeLocalGet(key) {
+  try { return localStorage.getItem(key); }
+  catch(e) { return null; }
+}
+
+function safeLocalSet(key, val) {
+  try { localStorage.setItem(key, val); return true; }
+  catch(e) {
+    // Private mode or storage full
+    console.warn('localStorage 저장 실패:', e.message);
+    return false;
+  }
+}
+
+function safeLocalRemove(key) {
+  try { localStorage.removeItem(key); } catch(e) {}
+}
+
+// ==================== STATE ====================
+let currentPage = 0;
+const TOTAL_PAGES = 8;
+let tags = []; // 하위 호환용 (미사용)
+let actTypes = [];
+let selectedMajor = '';
+let _studentPk = true; // GitHub Pages: 항상 로컬 저장
+let questionFiles = [[],[],[]];
+let questionLinks = [[''],[''],['']]; // 질문당 링크 배열 (복수)
+let questionTypes = [new Set(), new Set(), new Set()];
+let questionCount = 3; // 현재 질문 수
+
+function ensureQArrays(qi) {
+  while (questionFiles.length <= qi) questionFiles.push([]);
+  while (questionLinks.length <= qi) questionLinks.push(['']);
+  while (questionTypes.length <= qi) questionTypes.push(new Set());
+}
+
+// ==================== PAGE NAV ====================
+function goToPage(n) {
+  const fromEl = document.getElementById(`page-${currentPage}`);
+  const toEl = document.getElementById(`page-${n}`);
+  if (fromEl) fromEl.classList.remove('active');
+  if (toEl) toEl.classList.add('active');
+  currentPage = n;
+  updateNav();
+  if (n === 7) buildFinalPreview();
+  if (n === 4) updateBodyTitles();
+  safeScrollTop();
+  setTimeout(safeScrollTop, 50);
+  saveData('자동저장');
+}
+
+function nextPage() { if (currentPage < TOTAL_PAGES-1) goToPage(currentPage+1); }
+function prevPage() { if (currentPage > 0) goToPage(currentPage-1); }
+
+// 클라이언트 진도율 계산 (0~100)
+function calcProgress() {
+  const get = id => (document.getElementById(id)?.value || '').trim();
+
+  // 질문 1개 이상 작성 여부
+  let qFilled = 0;
+  for (let i = 0; i < questionCount; i++) {
+    if (get(`q${i}title`) || get(`q${i}content`)) { qFilled++; break; }
+  }
+  // 본론 1개 이상 작성 여부
+  let bodyFilled = 0;
+  for (let i = 0; i < questionCount; i++) {
+    if ((document.getElementById(`body${i+1}`)?.value || '').trim()) { bodyFilled++; break; }
+  }
+
+  const checks = [
+    !!get('school'),           // 1. 기본정보
+    !!get('subjectName'),      // 2. 교과 연계
+    qFilled >= 1,              // 3. 탐구질문
+    !!get('finalTitle'),       // 4. 최종 제목
+    !!get('purposeText'),      // 5. 서론
+    bodyFilled >= 1,           // 6. 본론
+    !!get('reflection'),       // 7. 결론
+    !!get('myRecord'),         // 8. 학생부
+  ];
+  return Math.round(checks.filter(Boolean).length / checks.length * 100);
+}
+
+function updateNav() {
+  const steps = document.querySelectorAll('.step-btn');
+  steps.forEach((s,i) => {
+    s.classList.remove('active','completed');
+    if (i === currentPage) s.classList.add('active');
+    else if (i < currentPage) s.classList.add('completed');
+  });
+  // 페이지 진행 바 (현재 위치)
+  const pagePct = ((currentPage+1)/TOTAL_PAGES)*100;
+  document.getElementById('progressFill').style.width = pagePct + '%';
+
+  // 진도율 배지 업데이트
+  updateProgressBadge();
+}
+
+function updateProgressBadge() {
+  let badge = document.getElementById('progressBadge');
+  if (!badge) {
+    badge = document.createElement('div');
+    badge.id = 'progressBadge';
+    badge.style.cssText = `
+      position:fixed;bottom:80px;left:16px;
+      background:#1a1612;color:#fefcf8;
+      padding:5px 12px;border-radius:20px;
+      font-size:0.75rem;font-weight:600;
+      z-index:89;box-shadow:0 2px 8px rgba(0,0,0,0.2);
+      transition:background 0.3s;
+    `;
+    document.body.appendChild(badge);
+  }
+  const pct = calcProgress();
+  const color = pct >= 80 ? '#2d7a4f' : pct >= 40 ? '#b8860b' : '#1a1612';
+  badge.style.background = color;
+  badge.textContent = `작성 ${pct}%`;
+  badge.style.display = 'block';
+}
+
+function goToFinalPage() { goToPage(7); }
+
+// ==================== MAJOR SELECT ====================
+function selectMajor(el, val) {
+  document.querySelectorAll('#majorGrid .option-chip').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedMajor = val;
+  if (val === '기타') {
+    const etc = document.getElementById('majorEtc');
+    if (etc) setTimeout(() => etc.focus(), 50);
+  }
+  saveAutoField();
+}
+
+// ==================== MULTI CHECK ====================
+function toggleActType(el, val) {
+  el.classList.toggle('selected');
+  if (actTypes.includes(val)) actTypes = actTypes.filter(v => v !== val);
+  else actTypes.push(val);
+  saveAutoField();
+}
+
+// 하위 호환 (혹시 남은 호출 대비)
+function toggleMulti(el, key, val) {
+  if (key === 'actType') toggleActType(el, val);
+}
+
+// ==================== TAG INPUT ====================
+// ==================== KEYWORD INPUTS ====================
+function getKeywords() {
+  return Array.from({length: 10}, (_,i) => {
+    const el = document.getElementById(`kw${i}`);
+    return el ? el.value.trim() : '';
+  }).filter(Boolean);
+}
+
+function loadKeywords(kwArray) {
+  if (!kwArray || !kwArray.length) return;
+  kwArray.forEach((val, i) => {
+    if (i >= 10) return;
+    const el = document.getElementById(`kw${i}`);
+    if (el) el.value = val;
+  });
+}
+
+// ==================== QUESTIONS (PAGE 3) ====================
+function buildQuestions() {
+  const container = document.getElementById('questions-container');
+  container.innerHTML = '';
+  for (let qi = 0; qi < questionCount; qi++) {
+    ensureQArrays(qi);
+    container.appendChild(createQuestionBlock(qi));
+  }
+  updateAddQuestionBtn();
+}
+
+function createQuestionBlock(qi) {
+  const block = document.createElement('div');
+  block.className = 'card question-block';
+  block.id = `qBlock${qi}`;
+  block.innerHTML = `
+    <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="question-number">${qi+1}</span>
+        탐구 질문 ${qi+1}
+      </div>
+      ${qi >= 3 ? `<button type="button" onclick="removeQuestion(${qi})"
+        style="background:none;border:1px solid var(--accent);color:var(--accent);
+        padding:4px 10px;border-radius:4px;font-size:0.75rem;cursor:pointer;">✕ 삭제</button>` : ''}
+    </div>
+    <div class="question-body">
+      <div class="field-group">
+        <label>질문 제목</label>
+        <input type="text" id="q${qi}title" placeholder="탐구하고 싶은 질문 제목을 적어주세요." oninput="updateBodyTitles();saveAutoField()">
+      </div>
+      <div class="field-group">
+        <label>질문 내용 <span class="opt">(5줄 이상 권장)</span></label>
+        <textarea id="q${qi}content" style="min-height:140px;" placeholder="이 질문을 갖게 된 배경, 알고 싶은 내용, 예상되는 답변 등을 구체적으로 서술하세요." oninput="saveAutoField()"></textarea>
+      </div>
+      <div class="field-group">
+        <label>관련 자료 유형 <span class="opt">(복수 선택 가능)</span></label>
+        <div class="option-grid" id="q${qi}typeGrid" style="gap:8px;">
+          ${['학술논문','학술지','기사/뉴스','도서','영상/유튜브','보고서','통계자료','블로그/웹사이트','SNS/커뮤니티','기타'].map(type =>
+            `<button type="button" class="option-chip q-type-chip" data-qi="${qi}" data-val="${type}" onclick="toggleQTypeBtn(this)">${type}</button>`
+          ).join('')}
+        </div>
+        <div style="margin-top:8px;display:none;" id="q${qi}etcWrap">
+          <input type="text" id="q${qi}etcText" placeholder="기타 자료 유형을 직접 입력하세요" oninput="saveAutoField()" style="font-size:0.83rem;">
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label>자료 링크 <span class="opt">(여러 개 추가 가능)</span></label>
+        <div id="q${qi}linkList"></div>
+        <button type="button" onclick="addLink(${qi})"
+          style="margin-top:8px;background:none;border:1px dashed var(--border);
+          color:var(--ink-light);padding:7px 14px;border-radius:6px;
+          font-size:0.82rem;cursor:pointer;width:100%;text-align:center;">
+          + 링크 추가
+        </button>
+      </div>
+
+      <div class="field-group">
+        <label>자료 첨부 <span class="opt">(PDF, 이미지 · 최대 3개)</span></label>
+        <div class="upload-zone" id="q${qi}dropzone"
+          ondragover="event.preventDefault();this.classList.add('dragover')"
+          ondragleave="this.classList.remove('dragover')"
+          ondrop="handleDrop(event,${qi})"
+          onclick="document.getElementById('q${qi}fileInput').click()">
+          <div class="upload-icon">📎</div>
+          <div class="upload-text">파일을 끌어다 놓거나 <strong>클릭</strong>하여 업로드<br><small>PDF, JPG, PNG 지원 (파일당 최대 10MB)</small></div>
+          <input type="file" id="q${qi}fileInput" style="display:none" accept=".pdf,.jpg,.jpeg,.png" multiple onchange="handleFileInput(event,${qi})">
+        </div>
+        <div class="upload-list" id="q${qi}fileList"></div>
+      </div>
+    </div>
+  `;
+  // 링크 초기 렌더
+  setTimeout(() => renderLinkList(qi), 0);
+  return block;
+}
+
+function addQuestion() {
+  if (questionCount >= 10) { showToast('탐구질문은 최대 10개까지 추가할 수 있습니다.', 'error'); return; }
+  const qi = questionCount;
+  ensureQArrays(qi);
+  if (!bodyData[qi]) bodyData[qi] = { title: '', content: '', userEdited: false };
+  questionCount++;
+  const container = document.getElementById('questions-container');
+  container.appendChild(createQuestionBlock(qi));
+  buildBodySection(); // 본론도 함께 추가
+  updateAddQuestionBtn();
+  saveAutoField();
+  document.getElementById(`qBlock${qi}`)?.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function removeQuestion(qi) {
+  if (questionCount <= 3) { showToast('탐구질문은 최소 3개 이상이어야 합니다.', 'error'); return; }
+  if (!confirm(`탐구질문 ${qi+1}을 삭제할까요?\n연결된 본론 ${qi+1}의 내용도 함께 삭제됩니다.`)) return;
+
+  // 배열 앞당기기
+  for (let i = qi; i < questionCount - 1; i++) {
+    const tSrc = document.getElementById(`q${i+1}title`);
+    const cSrc = document.getElementById(`q${i+1}content`);
+    const tDst = document.getElementById(`q${i}title`);
+    const cDst = document.getElementById(`q${i}content`);
+    if (tDst && tSrc) tDst.value = tSrc.value;
+    if (cDst && cSrc) cDst.value = cSrc.value;
+    questionFiles[i] = questionFiles[i+1] || [];
+    questionLinks[i] = questionLinks[i+1] || [''];
+    questionTypes[i] = questionTypes[i+1] || new Set();
+    bodyData[i] = bodyData[i+1] || { title: '', content: '', userEdited: false };
+  }
+  questionCount--;
+  questionFiles.length = questionCount;
+  questionLinks.length = questionCount;
+  questionTypes.length = questionCount;
+  delete bodyData[questionCount];
+
+  buildQuestions();
+  buildBodySection(); // 본론도 함께 재생성
+  for (let i = 0; i < questionCount; i++) {
+    renderLinkList(i);
+    renderFileList(i);
+  }
+  updateBodyTitles();
+  updateAddQuestionBtn();
+  saveAutoField();
+}
+
+function updateAddQuestionBtn() {
+  let btn = document.getElementById('addQuestionBtn');
+  if (!btn) return;
+  btn.style.display = questionCount >= 10 ? 'none' : 'block';
+  btn.textContent = `+ 탐구질문 추가 (현재 ${questionCount}개 / 최대 10개)`;
+}
+
+// ── 복수 링크 관리 ──
+function renderLinkList(qi) {
+  const container = document.getElementById(`q${qi}linkList`);
+  if (!container) return;
+  if (!questionLinks[qi] || questionLinks[qi].length === 0) questionLinks[qi] = [''];
+  container.innerHTML = questionLinks[qi].map((url, li) => `
+    <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center;">
+      <input type="text" value="${url.replace(/"/g,'&quot;')}"
+        placeholder="https://... 링크를 붙여 넣으세요"
+        style="flex:1;font-size:0.85rem;"
+        oninput="updateLink(${qi},${li},this.value)">
+      ${questionLinks[qi].length > 1
+        ? `<button type="button" onclick="removeLink(${qi},${li})"
+            style="background:none;border:none;color:var(--accent);
+            font-size:1rem;cursor:pointer;padding:4px 6px;flex-shrink:0;">✕</button>`
+        : ''}
+    </div>
+  `).join('');
+}
+
+function updateLink(qi, li, val) {
+  questionLinks[qi][li] = val;
+  saveAutoField();
+}
+
+function addLink(qi) {
+  if (questionLinks[qi].length >= 5) { showToast('링크는 질문당 최대 5개까지 추가할 수 있습니다.', 'error'); return; }
+  questionLinks[qi].push('');
+  renderLinkList(qi);
+}
+
+function removeLink(qi, li) {
+  questionLinks[qi].splice(li, 1);
+  if (questionLinks[qi].length === 0) questionLinks[qi] = [''];
+  renderLinkList(qi);
+  saveAutoField();
+}
+
+function toggleQTypeBtn(btn) {
+  const qi = parseInt(btn.dataset.qi);
+  const val = btn.dataset.val;
+  btn.classList.toggle('selected');
+  if (val === '기타') {
+    const wrap = document.getElementById(`q${qi}etcWrap`);
+    if (wrap) wrap.style.display = btn.classList.contains('selected') ? 'block' : 'none';
+  }
+  if (questionTypes[qi].has(val)) questionTypes[qi].delete(val);
+  else questionTypes[qi].add(val);
+  saveAutoField();
+}
+
+function handleDrop(event, qi) {
+  event.preventDefault();
+  document.getElementById(`q${qi}dropzone`).classList.remove('dragover');
+  const files = event.dataTransfer.files;
+  addFiles(qi, files);
+}
+
+function handleFileInput(event, qi) {
+  addFiles(qi, event.target.files);
+}
+
+function addFiles(qi, files) {
+  for (const f of files) {
+    if (questionFiles[qi].length >= 3) { showToast('파일은 최대 3개까지 첨부할 수 있습니다.','error'); break; }
+    questionFiles[qi].push(f);
+  }
+  renderFileList(qi);
+}
+
+function renderFileList(qi) {
+  const list = document.getElementById(`q${qi}fileList`);
+  list.innerHTML = '';
+  questionFiles[qi].forEach((f,i) => {
+    const item = document.createElement('div');
+    item.className = 'upload-item';
+    const size = f.size < 1024*1024 ? (f.size/1024).toFixed(1)+'KB' : (f.size/(1024*1024)).toFixed(1)+'MB';
+    item.innerHTML = `<span>📄 ${f.name} <span style="color:var(--ink-faint)">(${size})</span></span><button onclick="removeFile(${qi},${i})">✕ 삭제</button>`;
+    list.appendChild(item);
+  });
+}
+
+function removeFile(qi, i) {
+  questionFiles[qi].splice(i,1);
+  renderFileList(qi);
+}
+
+// ==================== 동적 본론 생성 ====================
+let bodyData = {}; // {0:{title:'',content:'',userEdited:false}, ...}
+
+function buildBodySection() {
+  const container = document.getElementById('body-container');
+  if (!container) return;
+  container.innerHTML = '';
+
+  for (let i = 0; i < questionCount; i++) {
+    if (!bodyData[i]) bodyData[i] = { title: '', content: '', userEdited: false };
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.id = `bodyCard${i}`;
+
+    const qTitle = document.getElementById(`q${i}title`)?.value || '';
+    const placeholder = qTitle || `본론 ${i+1}의 소제목을 입력하세요`;
+
+    card.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+        <div class="card-title" style="margin-bottom:0;">본론 ${i+1}</div>
+        <div style="font-size:0.75rem;color:var(--ink-faint);">질문 제목을 소제목으로 자동 반영 · 직접 수정 가능</div>
+      </div>
+      <div class="field-group">
+        <label>소제목</label>
+        <input type="text" id="bodyTitle${i+1}" placeholder="${placeholder}"
+          value="${escHtml(bodyData[i].title)}"
+          oninput="bodyData[${i}].userEdited=!!this.value;bodyData[${i}].title=this.value;saveAutoField()">
+      </div>
+      <div class="body-hint-box" id="bodyHint${i+1}">
+        <div class="body-hint-label">💡 탐구질문 ${i+1} 참고</div>
+        <div class="body-hint-content" id="bodyHintText${i+1}">3페이지에서 탐구질문 ${i+1}을 작성하면 여기에 표시됩니다.</div>
+      </div>
+      <div class="field-group" style="margin-top:12px;">
+        <label>본론 내용</label>
+        <textarea id="body${i+1}" class="textarea-xxl"
+          placeholder="질문 ${i+1}에 대한 탐구 내용을 서술하세요.&#10;&#10;• 관련 이론 및 개념 설명&#10;• 조사한 자료 분석&#10;• 발견한 사실 및 해석&#10;• 탐구 결과 정리"
+          oninput="bodyData[${i}].content=this.value;saveAutoField()">${escHtml(bodyData[i].content)}</textarea>
+      </div>
+    `;
+    container.appendChild(card);
+  }
+  // 힌트 박스 업데이트
+  updateBodyTitles();
+}
+
+// ==================== 질문 제목→본론 소제목 연동 ====================
+function updateBodyTitles() {
+  for (let i = 0; i < questionCount; i++) {
+    const titleInput = document.getElementById(`q${i}title`);
+    const contentInput = document.getElementById(`q${i}content`);
+    const bodyTitleEl = document.getElementById(`bodyTitle${i+1}`);
+    const hintTextEl = document.getElementById(`bodyHintText${i+1}`);
+
+    const qTitle = titleInput ? titleInput.value.trim() : '';
+    const qContent = contentInput ? contentInput.value.trim() : '';
+
+    // 소제목 자동 반영 (사용자가 직접 수정하지 않은 경우만)
+    if (bodyTitleEl && qTitle && !bodyData[i]?.userEdited) {
+      bodyTitleEl.value = qTitle;
+      if (bodyData[i]) bodyData[i].title = qTitle;
+    }
+
+    // 힌트 박스
+    if (hintTextEl) {
+      if (qTitle || qContent) {
+        hintTextEl.textContent = [
+          qTitle ? `제목: ${qTitle}` : '',
+          qContent ? `내용: ${qContent}` : ''
+        ].filter(Boolean).join('\n');
+        hintTextEl.classList.remove('empty');
+      } else {
+        hintTextEl.textContent = `3페이지에서 탐구질문 ${i+1}을 작성하면 여기에 표시됩니다.`;
+        hintTextEl.classList.add('empty');
+      }
+    }
+  }
+  // 질문 링크 → 참고문헌 자동 반영
+  renderRefFromQuestions();
+}
+
+// ==================== 질문 링크 → 참고문헌 자동 반영 ====================
+function renderRefFromQuestions() {
+  const container = document.getElementById('refFromQuestions');
+  if (!container) return;
+
+  // 모든 질문의 링크 수집 (비어있지 않은 것만)
+  const qRefs = [];
+  for (let i = 0; i < questionCount; i++) {
+    const links = questionLinks[i] || [];
+    links.forEach(url => {
+      if (url && url.trim()) {
+        qRefs.push({ qi: i, url: url.trim() });
+      }
+    });
+  }
+
+  if (!qRefs.length) {
+    container.innerHTML = '';
+    return;
+  }
+
+  container.innerHTML = `
+    <div style="margin-bottom:16px;">
+      <div style="font-size:0.78rem;font-weight:700;color:var(--blue);
+        letter-spacing:0.05em;margin-bottom:10px;padding:6px 10px;
+        background:#eef4fa;border-radius:5px;border-left:3px solid var(--blue);">
+        🔗 3페이지 질문 자료 링크 (자동 반영)
+      </div>
+      ${qRefs.map((r, idx) => `
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;
+          padding:8px 12px;background:var(--bg);border-radius:6px;
+          border:1px solid var(--border);">
+          <span style="font-size:0.75rem;color:var(--ink-faint);white-space:nowrap;min-width:40px;">
+            질문${r.qi+1}
+          </span>
+          <a href="${escHtml(r.url)}" target="_blank"
+            style="font-size:0.83rem;color:var(--blue);word-break:break-all;
+            text-decoration:none;flex:1;" title="${escHtml(r.url)}">
+            ${escHtml(r.url.length > 60 ? r.url.substring(0,60)+'...' : r.url)}
+          </a>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+// 소제목 직접 수정 감지는 buildBodySection 내에서 처리됨
+
+// ==================== REFERENCES ====================
+let refs = []; // [{url:'', apa:'', manual:'', mode:'url'}]
+
+function initRefs() {
+  // Start with 3 rows, allow up to 10
+  for (let i = 0; i < 3; i++) refs.push({url:'', apa:'', manual:'', mode:'url'});
+  renderRefList();
+}
+
+function addRefRow() {
+  if (refs.length >= 10) { showToast('참고문헌은 최대 10개까지 추가할 수 있습니다.','error'); return; }
+  refs.push({url:'', apa:'', manual:'', mode:'url'});
+  renderRefList();
+  saveAutoField();
+}
+
+function removeRefRow(i) {
+  refs.splice(i, 1);
+  renderRefList();
+  saveAutoField();
+}
+
+function setRefMode(i, mode) {
+  refs[i].mode = mode;
+  renderRefList();
+}
+
+function renderRefList() {
+  const container = document.getElementById('refList');
+  if (!container) return;
+  container.innerHTML = '';
+  refs.forEach((ref, i) => {
+    const row = document.createElement('div');
+    row.className = 'ref-row';
+    row.innerHTML = `
+      <div class="ref-num">[${i+1}]</div>
+      <div class="ref-input-wrap">
+        <div class="ref-tab-bar">
+          <button class="ref-tab ${ref.mode==='url'?'active':''}" onclick="setRefMode(${i},'url')">🔗 URL 입력</button>
+          <button class="ref-tab ${ref.mode==='manual'?'active':''}" onclick="setRefMode(${i},'manual')">✏️ 직접 입력</button>
+        </div>
+        ${ref.mode === 'url' ? `
+          <div class="ref-url-row">
+            <input type="text" placeholder="https://... 또는 DOI 링크를 입력하세요" value="${escHtml(ref.url)}"
+              oninput="refs[${i}].url=this.value;saveAutoField()">
+          </div>
+        ` : `
+          <textarea class="ref-manual" rows="2" placeholder="직접 APA 형식으로 입력하세요.&#10;예) 홍길동 (2024). 제목. 학술지명, 10(2), 1-20."
+            oninput="refs[${i}].manual=this.value;saveAutoField()">${escHtml(ref.manual)}</textarea>
+        `}
+      </div>
+      <button class="btn-ref-del" onclick="removeRefRow(${i})" title="삭제">✕</button>
+    `;
+    container.appendChild(row);
+  });
+}
+
+function escHtml(str) {
+  return (str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+
+
+function getRefsForSave() {
+  return refs.map(r => ({ url: r.url, apa: r.apa, manual: r.manual, mode: r.mode }));
+}
+
+function loadRefs(savedRefs) {
+  if (!savedRefs || !savedRefs.length) return;
+  refs = savedRefs.map(r => ({ url: r.url||'', apa: r.apa||'', manual: r.manual||'', mode: r.mode||'url' }));
+  renderRefList();
+}
+
+function getRefsFinalHTML() {
+  const items = refs.map((r, i) => {
+    const text = r.mode === 'manual' ? r.manual : (r.apa || r.url || '');
+    if (!text.trim()) return '';
+    return `<div style="margin-bottom:8px;font-size:0.85rem;line-height:1.7;padding-left:20px;text-indent:-20px;">[${i+1}] ${text}</div>`;
+  }).filter(Boolean);
+  return items.join('');
+}
+
+// ==================== CHAR COUNT ====================
+function countChars(el, countId) {
+  const len = el.value.length;
+  const limit = parseInt(el.getAttribute('maxlength')) || 400;
+  const el2 = document.getElementById(countId);
+  if (el2) {
+    el2.textContent = `${len} / ${limit}자`;
+    el2.className = 'char-count' + (len > 400 ? ' over' : '');
+  }
+}
+
+// ==================== FINAL PREVIEW ====================
+function buildFinalPreview() {
+  const school = document.getElementById('school').value || '(학교 미입력)';
+  const sid = document.getElementById('studentId').value || '(학번 미입력)';
+  const name = document.getElementById('studentName').value || '(이름 미입력)';
+  const dept = document.getElementById('desiredDept').value || '';
+  const major = selectedMajor === '기타' ? (document.getElementById('majorEtc').value || '기타') : selectedMajor;
+  const subj = document.getElementById('subjectName').value || '';
+  const unit = document.getElementById('unitName').value || '';
+  const unitSum = document.getElementById('unitSummary').value || '';
+  const prevTopics = document.getElementById('prevTopics').value || '';
+  const finalTitle = document.getElementById('finalTitle').value || '(제목 미입력)';
+  const purpose = document.getElementById('purposeText').value || '';
+  const necessity = document.getElementById('necessityText').value || '';
+
+  const q = Array.from({length: Math.min(questionCount, 3)}, (_, i) => ({
+    title: document.getElementById(`q${i}title`)?.value || `질문 ${i+1}`,
+    content: document.getElementById(`q${i}content`)?.value || '',
+    link: questionLinks[i]?.[0] || ''
+  }));
+  while (q.length < 3) q.push({title:'', content:'', link:''});
+
+  // 동적 본론 수집
+  const bodies = Array.from({length: questionCount}, (_, i) => ({
+    title: document.getElementById(`bodyTitle${i+1}`)?.value || bodyData[i]?.title || `본론 ${i+1}`,
+    content: document.getElementById(`body${i+1}`)?.value || bodyData[i]?.content || ''
+  }));
+
+  // 하위 호환용 (구 변수명)
+  const body1 = bodies[0]?.content || '';
+  const body2 = bodies[1]?.content || '';
+  const body3 = bodies[2]?.content || '';
+  const bodyTitle1 = bodies[0]?.title || q[0].title || '본론 1';
+  const bodyTitle2 = bodies[1]?.title || q[1].title || '본론 2';
+  const bodyTitle3 = bodies[2]?.title || q[2].title || '본론 3';
+  const summary = document.getElementById('conclusionSummaryContent')?.value || '';
+  const suggestion = document.getElementById('suggestion').value || '';
+  const reflection = document.getElementById('reflection').value || '';
+  const competency = document.getElementById('competency').value || '';
+  const future = document.getElementById('futureResearch').value || '';
+  const myRecord = document.getElementById('myRecord').value || '';
+
+  const tocManual = document.getElementById('tocManual')?.value || '';
+
+  const wrapper = document.getElementById('finalReportWrapper');
+  wrapper.innerHTML = `
+  <div class="final-report" id="reportContent">
+    <div style="text-align:center;padding-bottom:20px;border-bottom:2px solid var(--ink);margin-bottom:24px;">
+      <div style="font-family:'Noto Serif KR',serif;font-size:0.8rem;color:var(--ink-faint);letter-spacing:0.08em;margin-bottom:8px;">RESEARCH REPORT</div>
+      <div style="font-family:'Noto Serif KR',serif;font-size:1.6rem;font-weight:700;line-height:1.4;margin-bottom:14px;">${finalTitle}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;max-width:400px;margin:0 auto;">
+        <div class="final-info-item"><div class="label">학교</div><div class="value">${school}</div></div>
+        <div class="final-info-item"><div class="label">학번</div><div class="value">${sid}</div></div>
+        <div class="final-info-item"><div class="label">이름</div><div class="value">${name}</div></div>
+      </div>
+      ${major||dept ? `<div style="margin-top:12px;font-size:0.82rem;color:var(--ink-light);">희망 계열: ${major}${dept?' | 희망 학과: '+dept:''}</div>` : ''}
+    </div>
+
+    ${tocManual ? `<div class="final-section">
+      <div class="final-section-title">목 차</div>
+      <div class="final-content" style="padding:10px 0;white-space:pre-wrap;">${tocManual}</div>
+    </div>` : ''}
+
+    ${prevTopics ? `<div class="final-section">
+      <div class="final-section-title">이전 탐구 주제</div>
+      <div class="final-content">${prevTopics}</div>
+    </div>` : ''}
+
+    ${subj||unit ? `<div class="final-section">
+      <div class="final-section-title">교과 연계</div>
+      <div class="final-content">${subj ? '교과명: ' + subj + '\n' : ''}${unit ? '단원명: ' + unit + '\n' : ''}${unitSum ? '\n' + unitSum : ''}</div>
+    </div>` : ''}
+
+    ${getKeywords().length ? `<div class="final-section">
+      <div class="final-section-title">핵심 키워드</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;padding:4px 0;">${getKeywords().map(t=>`<span style="background:var(--ink);color:#fefcf8;padding:4px 12px;border-radius:14px;font-size:0.82rem;">${t}</span>`).join('')}</div>
+    </div>` : ''}
+
+    <div class="final-section">
+      <div class="final-section-title">탐구 질문</div>
+      ${q.map((item,i)=>`<div style="margin-bottom:14px;padding:14px;background:var(--bg);border-radius:6px;"><strong style="font-size:0.9rem;">Q${i+1}. ${item.title}</strong>${item.content?`<div class="final-content" style="margin-top:8px;">${item.content}</div>`:''}${item.link?`<div style="font-size:0.78rem;color:var(--accent2);margin-top:6px;">🔗 ${item.link}</div>`:''}</div>`).join('')}
+    </div>
+
+    <div class="final-section">
+      <div class="final-section-title">서 론</div>
+      ${purpose ? `<div style="margin-bottom:14px;"><div style="font-size:0.82rem;font-weight:600;color:var(--ink-light);margin-bottom:6px;">▶ 탐구의 목적</div><div class="final-content">${purpose}</div></div>` : ''}
+      ${necessity ? `<div><div style="font-size:0.82rem;font-weight:600;color:var(--ink-light);margin-bottom:6px;">▶ 탐구의 필요성</div><div class="final-content">${necessity}</div></div>` : ''}
+    </div>
+
+    <div class="final-section">
+      <div class="final-section-title">본 론</div>
+      ${bodies.map((b, i) => b.content ? `
+        <div style="margin-bottom:18px;">
+          <div style="font-size:0.88rem;font-weight:700;color:var(--ink);margin-bottom:8px;padding-bottom:4px;border-bottom:1px dashed var(--border);">
+            ${i+1}. ${b.title || `본론 ${i+1}`}
+          </div>
+          <div class="final-content">${b.content}</div>
+        </div>` : '').join('')}
+    </div>
+
+    <div class="final-section">
+      <div class="final-section-title">결 론</div>
+      ${summary ? `<div style="margin-bottom:14px;"><div style="font-size:0.82rem;font-weight:600;color:var(--ink-light);margin-bottom:6px;">▶ 요약</div><div class="final-content">${summary}</div></div>` : ''}
+      ${suggestion ? `<div style="margin-bottom:14px;"><div style="font-size:0.82rem;font-weight:600;color:var(--ink-light);margin-bottom:6px;">▶ 제언</div><div class="final-content">${suggestion}</div></div>` : ''}
+      ${reflection ? `<div style="margin-bottom:14px;"><div style="font-size:0.82rem;font-weight:600;color:var(--ink-light);margin-bottom:6px;">▶ 느낀점 / 알게 된 점</div><div class="final-content">${reflection}</div></div>` : ''}
+      ${competency ? `<div style="margin-bottom:14px;"><div style="font-size:0.82rem;font-weight:600;color:var(--ink-light);margin-bottom:6px;">▶ 향상된 역량</div><div class="final-content">${competency}</div></div>` : ''}
+      ${future ? `<div><div style="font-size:0.82rem;font-weight:600;color:var(--ink-light);margin-bottom:6px;">▶ 추후 연계 탐구주제</div><div class="final-content">${future}</div></div>` : ''}
+    </div>
+
+    ${myRecord ? `<div class="final-section">
+      <div class="final-section-title">학교생활기록부 기재 내용</div>
+      <div class="final-content" style="background:var(--highlight);padding:14px;border-radius:6px;">${myRecord}</div>
+    </div>` : ''}
+
+    ${getRefsFinalHTML() ? `<div class="final-section">
+      <div class="final-section-title">참고문헌</div>
+      <div style="padding:4px 0;">${getRefsFinalHTML()}</div>
+    </div>` : ''}
+  </div>
+  `;
+}
+
+// ==================== PDF DOWNLOAD ====================
+function downloadPDF() {
+  buildFinalPreview();
+  const school   = document.getElementById('school').value || '학교';
+  const sid      = document.getElementById('studentId').value || '학번';
+  const name     = document.getElementById('studentName').value || '이름';
+  const filename = `${school}_${sid}_${name}.pdf`;
+
+  const el = document.getElementById('reportContent');
+  if (!el) { showToast('보고서 내용이 없습니다.', 'error'); return; }
+
+  // iOS 감지
+  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  const isAndroid = /Android/.test(navigator.userAgent);
+
+  showToast('PDF를 생성하는 중입니다... 잠시 기다려 주세요.', 'success', 5000);
+
+  const opt = {
+    margin: [12, 12, 12, 12],
+    filename: filename,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+  };
+
+  if (isIOS) {
+    // iOS: Blob → 서버에 업로드 → 올바른 파일명으로 다운로드 URL 생성
+    html2pdf().set(opt).from(el).outputPdf('blob').then(async blob => {
+      const url = URL.createObjectURL(blob);
+      showPDFSaveGuide(url, filename);
+    }).catch(() => {
+      showToast('PDF 생성 실패. 다시 시도해 주세요.', 'error');
+    });
+
+  } else if (isAndroid) {
+    // Android: 먼저 .save() 시도, 실패 시 새 탭으로 폴백
+    html2pdf().set(opt).from(el).outputPdf('blob').then(blob => {
+      try {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 3000);
+        showToast(`"${filename}" 다운로드 시작!`, 'success');
+      } catch {
+        // 폴백: 새 탭
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        showToast('새 탭에서 PDF를 열었습니다. 길게 눌러 저장하세요.', 'success', 5000);
+      }
+    }).catch(() => {
+      showToast('PDF 생성 실패. 다시 시도해 주세요.', 'error');
+    });
+
+  } else {
+    // PC (Mac, Windows): 기존 방식
+    html2pdf().set(opt).from(el).save().then(() => {
+      showToast(`"${filename}" 저장 완료!`, 'success');
+    }).catch(() => {
+      showToast('PDF 생성 중 오류가 발생했습니다.', 'error');
+    });
+  }
+}
+
+// iOS PDF 저장 안내 모달
+function showPDFSaveGuide(downloadUrl, filename) {
+  const old = document.getElementById('pdfGuideModal');
+  if (old) old.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'pdfGuideModal';
+  modal.style.cssText = `
+    position:fixed;inset:0;z-index:99999;
+    background:rgba(26,22,18,0.7);
+    display:flex;align-items:flex-end;justify-content:center;
+    padding:0;
+  `;
+  modal.innerHTML = `
+    <div style="background:#fefcf8;border-radius:20px 20px 0 0;
+      padding:28px 24px calc(36px + env(safe-area-inset-bottom,0px));
+      width:100%;max-width:480px;
+      font-family:-apple-system,'Noto Sans KR',sans-serif;">
+      <div style="width:40px;height:4px;background:#d4cfc8;
+        border-radius:2px;margin:0 auto 20px;"></div>
+      <div style="font-size:1.05rem;font-weight:700;color:#1a1612;margin-bottom:6px;">
+        📄 PDF 저장하기
+      </div>
+      <div style="background:#f5f2ec;border-radius:8px;padding:10px 14px;
+        margin-bottom:16px;font-size:0.82rem;color:#5c5248;">
+        파일명: <strong style="color:#1a1612;">${filename}</strong>
+      </div>
+      <div style="font-size:0.85rem;color:#5c5248;line-height:1.9;margin-bottom:18px;">
+        <strong style="color:#1a1612;">① PDF 열기</strong> 버튼을 탭하세요<br>
+        <strong style="color:#1a1612;">② 화면 하단 공유 ↗</strong> 버튼을 탭하세요<br>
+        <strong style="color:#1a1612;">③ 파일에 저장</strong>을 선택하세요
+      </div>
+      <div style="background:#eef4fa;border-radius:8px;padding:10px 14px;
+        margin-bottom:20px;font-size:0.79rem;color:#2c5f8a;line-height:1.6;">
+        💡 "파일에 저장"이 보이지 않으면<br>
+        <strong>프린트</strong> → 미리보기 화면을 꾹 눌러 공유하세요
+      </div>
+      <a href="${downloadUrl}" target="_blank"
+        style="display:block;background:#1a1612;color:#fefcf8;
+        text-align:center;padding:15px;border-radius:10px;
+        font-size:1rem;font-weight:700;text-decoration:none;
+        margin-bottom:10px;-webkit-tap-highlight-color:transparent;"
+        onclick="setTimeout(()=>closePDFGuide(),1000)">
+        📄 PDF 열기
+      </a>
+      <button onclick="closePDFGuide()"
+        style="width:100%;background:transparent;border:1px solid #d4cfc8;
+        color:#5c5248;padding:13px;border-radius:10px;
+        font-size:0.9rem;cursor:pointer;font-family:inherit;
+        -webkit-tap-highlight-color:transparent;">
+        닫기
+      </button>
+    </div>
+  `;
+  modal.addEventListener('click', e => { if (e.target === modal) closePDFGuide(); });
+  document.body.appendChild(modal);
+}
+
+function closePDFGuide() {
+  const modal = document.getElementById('pdfGuideModal');
+  if (modal) modal.remove();
+}
+
+// ==================== SAVE / LOAD (HISTORY) ====================
+const HISTORY_KEY = 'researchReport_history';
+const HISTORY_MAX = 30;
+
+function collectData(label = '수동저장') {
+  return {
+    school: document.getElementById('school').value,
+    studentId: document.getElementById('studentId').value,
+    studentName: document.getElementById('studentName').value,
+    majorEtc: document.getElementById('majorEtc').value,
+    selectedMajor,
+    desiredDept: document.getElementById('desiredDept').value,
+    actTypes,
+    prevTopics: document.getElementById('prevTopics').value,
+    subjectName: document.getElementById('subjectName').value,
+    unitName: document.getElementById('unitName').value,
+    unitSummary: document.getElementById('unitSummary').value,
+    tags,
+    keywords: getKeywords(),
+    questions: Array.from({length: questionCount}, (_,i) => ({
+      title: document.getElementById(`q${i}title`)?.value || '',
+      content: document.getElementById(`q${i}content`)?.value || '',
+      links: questionLinks[i] ? [...questionLinks[i]] : [''],
+      link: questionLinks[i]?.[0] || '' // 하위 호환
+    })),
+    questionCount,
+    finalTitle: document.getElementById('finalTitle').value,
+    purposeText: document.getElementById('purposeText').value,
+    necessityText: document.getElementById('necessityText').value,
+    // 동적 본론 데이터
+    bodies: Array.from({length: questionCount}, (_, i) => ({
+      title: document.getElementById(`bodyTitle${i+1}`)?.value || bodyData[i]?.title || '',
+      content: document.getElementById(`body${i+1}`)?.value || bodyData[i]?.content || '',
+      userEdited: bodyData[i]?.userEdited || false
+    })),
+    // 하위 호환 (구버전 읽기용)
+    body1: document.getElementById('body1')?.value || '',
+    body2: document.getElementById('body2')?.value || '',
+    body3: document.getElementById('body3')?.value || '',
+    bodyTitle1: document.getElementById('bodyTitle1')?.value || '',
+    bodyTitle2: document.getElementById('bodyTitle2')?.value || '',
+    bodyTitle3: document.getElementById('bodyTitle3')?.value || '',
+    suggestion: document.getElementById('suggestion').value,
+    reflection: document.getElementById('reflection').value,
+    competency: document.getElementById('competency').value,
+    futureResearch: document.getElementById('futureResearch').value,
+    myRecord: document.getElementById('myRecord').value,
+    tocManual: document.getElementById('tocManual')?.value || '',
+    conclusionSummary: document.getElementById('conclusionSummaryContent')?.value || '',
+    refs: getRefsForSave(),
+    savedAt: new Date().toISOString(),
+    label
+  };
+}
+
+function getHistory() {
+  try {
+    const raw = safeLocalGet(HISTORY_KEY);
+    return JSON.parse(raw || '[]');
+  } catch { return window._memHistory || []; }
+}
+
+function saveHistory(history) {
+  window._memHistory = history; // 메모리에는 항상 보관
+  const ok = safeLocalSet(HISTORY_KEY, JSON.stringify(history));
+}
+
+// ══════════════════════════════════════════════
+//  Firebase 저장/불러오기
+// ══════════════════════════════════════════════
+let _fbUser = null; // { school, studentId, name, docId }
+
+function _fbDocId(school, studentId, name) {
+  // Firestore 문서 ID: 학교_학번_이름 (특수문자 제거)
+  return `${school}_${studentId}_${name}`.replace(/[^a-zA-Z0-9가-힣_-]/g, '_');
+}
+
+async function fbSave(label = '수동저장') {
+  if (!window._fbReady || !_fbUser) return localSave(label);
+  const { doc, setDoc } = window._firestore;
+  const data = collectData(label);
+  const progress = calcProgress();
+  try {
+    await setDoc(doc(window._db, 'students', _fbUser.docId), {
+      ...data,
+      progress,
+      school: _fbUser.school,
+      studentId: _fbUser.studentId,
+      name: _fbUser.name,
+      lastSaved: new Date().toISOString(),
+      online: true
+    });
+    const t = new Date().toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'});
+    document.getElementById('saveIndicator').textContent = `저장됨 ${t}`;
+    if (label !== '자동저장') showToast('클라우드에 저장되었습니다! ☁️', 'success');
+    updateProgressBadge();
+  } catch(e) {
+    console.error('Firebase 저장 실패:', e);
+    localSave(label); // 폴백
+  }
+}
+
+async function fbLoad() {
+  if (!window._fbReady || !_fbUser) return;
+  const { doc, getDoc } = window._firestore;
+  try {
+    const snap = await getDoc(doc(window._db, 'students', _fbUser.docId));
+    if (snap.exists()) {
+      applyData(snap.data());
+      const t = snap.data().lastSaved
+        ? new Date(snap.data().lastSaved).toLocaleString('ko-KR', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})
+        : '';
+      document.getElementById('saveIndicator').textContent = t ? `저장됨 ${t}` : '불러옴';
+      showToast('저장된 내용을 불러왔습니다. ☁️', 'success');
+    }
+  } catch(e) {
+    console.error('Firebase 불러오기 실패:', e);
+  }
+}
+
+// 온라인 상태 업데이트 (접속/종료)
+async function fbSetOnline(online) {
+  if (!window._fbReady || !_fbUser) return;
+  const { doc, setDoc } = window._firestore;
+  try {
+    await setDoc(doc(window._db, 'students', _fbUser.docId), { online }, { merge: true });
+  } catch {}
+}
+
+// 로컬 저장 (폴백)
+function localSave(label = '수동저장') {
+  const data = collectData(label);
+  let history = getHistory();
+  history.unshift(data);
+  if (history.length > HISTORY_MAX) history = history.slice(0, HISTORY_MAX);
+  saveHistory(history);
+  const t = new Date().toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'});
+  document.getElementById('saveIndicator').textContent = `저장됨 ${t}`;
+  showToast(label === '자동저장' ? `자동저장 (${t})` : '임시저장 완료!', 'success');
+}
+
+function saveData(label = '수동저장') {
+  if (window._fbReady && _fbUser) {
+    fbSave(label);
+  } else {
+    localSave(label);
+  }
+  updateProgressBadge();
+}
+
+function saveAutoField() {
+  const indicator = document.getElementById('saveIndicator');
+  if (!indicator.textContent.includes('수정됨')) {
+    indicator.textContent = '수정됨 (미저장)';
+  }
+  updateProgressBadge();
+}
+
+// 학생 로그인 (Firebase 버전)
+function startWithUser() {
+  const school     = (document.getElementById('loginSchool')?.value || '').trim();
+  const cls        = document.getElementById('loginClass')?.value || '';
+  const num        = document.getElementById('loginNum')?.value || '';
+  const name       = (document.getElementById('loginName')?.value || '').trim();
+  const studentId  = cls && num ? `${cls}${num}` : '';
+
+  if (!school || !studentId || !name) {
+    const errEl = document.getElementById('loginError');
+    if (errEl) { errEl.textContent = '학교명·반·번호·이름을 모두 입력해 주세요.'; errEl.style.display = 'block'; }
+    return;
+  }
+
+  _fbUser = { school, studentId, name, docId: _fbDocId(school, studentId, name) };
+
+  // 로그인 오버레이 숨기기
+  const overlay = document.getElementById('login-overlay');
+  if (overlay) overlay.style.display = 'none';
+
+  // 사용자 배지 표시
+  const badge = document.getElementById('userBadge');
+  if (badge) {
+    badge.textContent = `👤 ${school}  ${name}`;
+    badge.style.display = 'block';
+  }
+  document.body.classList.add('user-logged-in');
+
+  // 1페이지 자동 입력
+  setTimeout(() => {
+    const fill = (id, val) => {
+      const el = document.getElementById(id);
+      if (el && !el.value) { el.value = val; saveAutoField(); }
+    };
+    fill('school', school);
+    fill('studentId', studentId);
+    fill('studentName', name);
+  }, 300);
+
+  // 앱 초기화
+  buildQuestions();
+  buildBodySection();
+  initRefs();
+  updateNav();
+  updateBodyTitles();
+  updateProgressBadge();
+
+  // Firebase 온라인 상태 + 데이터 불러오기
+  fbSetOnline(true);
+  fbLoad();
+
+  // 로컬 데이터도 백업으로 불러오기 (Firebase 실패 시)
+  if (!window._fbReady) {
+    const history = getHistory();
+    if (history.length) applyData(history[0]);
+  }
+
+  // 창 닫힐 때 오프라인 처리
+  window.addEventListener('beforeunload', () => fbSetOnline(false));
+  window.addEventListener('pagehide', () => fbSetOnline(false));
+}
+
+// 기존 doLogin 대체
+window.doLogin = startWithUser;
+
+function loadData() {
+  // localStorage 폴백 (Firebase 미설정 시)
+  const history = getHistory();
+  if (!history.length) return;
+  const data = history[0];
+  applyData(data);
+  const d = new Date(data.savedAt);
+  const timeStr = d.toLocaleString('ko-KR', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  document.getElementById('saveIndicator').textContent = `저장됨 ${timeStr}`;
+}
+
+// ===== 데이터 복원 함수 =====
+function applyData(data) {
+  const fields = ['school','studentId','studentName','majorEtc','desiredDept',
+    'prevTopics','subjectName','unitName','unitSummary','finalTitle',
+    'purposeText','necessityText',
+    'suggestion','reflection','competency','futureResearch','myRecord',
+    'tocManual'];
+  fields.forEach(f => {
+    const el = document.getElementById(f);
+    if (el && data[f] !== undefined) el.value = data[f];
+  });
+  // 결론 요약
+  const summaryEl = document.getElementById('conclusionSummaryContent');
+  if (summaryEl && data.conclusionSummary !== undefined) summaryEl.value = data.conclusionSummary;
+
+  if (data.selectedMajor) {
+    selectedMajor = data.selectedMajor;
+    document.querySelectorAll('#majorGrid .option-chip').forEach(chip => {
+      chip.classList.remove('selected');
+      const chipVal = chip.dataset?.val || chip.textContent.trim().split(':')[0].trim();
+      if (chip.id === 'chip-etc' && data.selectedMajor === '기타') chip.classList.add('selected');
+      else if (chip.textContent.trim() === data.selectedMajor) chip.classList.add('selected');
+    });
+  }
+
+  if (data.actTypes) {
+    actTypes = data.actTypes;
+    document.querySelectorAll('#actTypeGrid .option-chip').forEach(chip => {
+      const txt = chip.textContent.trim();
+      chip.classList.toggle('selected', actTypes.some(v => txt.startsWith(v)));
+    });
+  }
+
+  if (data.tags) { tags = data.tags; } // 하위 호환
+  if (data.keywords) { loadKeywords(data.keywords); }
+  else if (data.tags && data.tags.length) {
+    // 구버전 태그(#포함) → 키워드 입력칸으로 마이그레이션
+    loadKeywords(data.tags.map(t => t.replace(/^#/, '')));
+  }
+  if (data.refs) { refs = []; loadRefs(data.refs); }
+
+  if (data.questions) {
+    // 질문 수 복원
+    questionCount = Math.max(3, data.questionCount || data.questions.length || 3);
+    // 링크 배열 복원
+    questionLinks = data.questions.map(q =>
+      q.links && q.links.length ? [...q.links] : [q.link || '']
+    );
+    // 부족한 부분 채우기
+    while (questionLinks.length < questionCount) questionLinks.push(['']);
+    while (questionFiles.length < questionCount) questionFiles.push([]);
+    while (questionTypes.length < questionCount) questionTypes.push(new Set());
+
+    buildQuestions();
+
+    data.questions.forEach((q, i) => {
+      const t = document.getElementById(`q${i}title`);
+      const c = document.getElementById(`q${i}content`);
+      if (t) t.value = q.title || '';
+      if (c) c.value = q.content || '';
+      renderLinkList(i);
+    });
+
+    // 본론 데이터 복원 후 body-container 재생성
+    bodyData = {};
+    if (data.bodies && data.bodies.length) {
+      data.bodies.forEach((b, i) => {
+        bodyData[i] = { title: b.title||'', content: b.content||'', userEdited: b.userEdited||false };
+      });
+    } else {
+      // 구버전 하위 호환 (body1/body2/body3)
+      ['body1','body2','body3'].forEach((key, i) => {
+        if (data[key] !== undefined) {
+          bodyData[i] = {
+            title: data[`bodyTitle${i+1}`] || '',
+            content: data[key] || '',
+            userEdited: !!(data[`bodyTitle${i+1}`])
+          };
+        }
+      });
+    }
+    buildBodySection();
+
+    updateBodyTitles();
+    updateAddQuestionBtn();
+  }
+}
+
+function loadData() {
+  // 가장 최근 저장 항목 불러오기
+  const history = getHistory();
+  if (!history.length) return;
+  const data = history[0];
+  applyData(data);
+  const d = new Date(data.savedAt);
+  const timeStr = d.toLocaleString('ko-KR', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  document.getElementById('saveIndicator').textContent = `저장됨 ${timeStr}`;
+  showToast('마지막 저장 데이터를 불러왔습니다.', 'success');
+}
+
+// ===== HISTORY DRAWER =====
+function openHistory() {
+  renderHistoryList();
+  document.getElementById('historyDrawer').classList.add('open');
+  document.getElementById('drawerOverlay').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeHistory() {
+  document.getElementById('historyDrawer').classList.remove('open');
+  document.getElementById('drawerOverlay').classList.remove('show');
+  document.body.style.overflow = '';
+}
+
+function renderHistoryList() {
+  const list = document.getElementById('historyList');
+  const empty = document.getElementById('historyEmpty');
+  const history = getHistory();
+  list.innerHTML = '';
+
+  if (!history.length) {
+    empty.classList.add('show');
+    return;
+  }
+  empty.classList.remove('show');
+
+  // 날짜별 그룹핑
+  const groups = {};
+  history.forEach((item, idx) => {
+    const d = new Date(item.savedAt);
+    const dayKey = d.toLocaleDateString('ko-KR', {year:'numeric', month:'long', day:'numeric', weekday:'short'});
+    if (!groups[dayKey]) groups[dayKey] = [];
+    groups[dayKey].push({item, idx});
+  });
+
+  Object.entries(groups).forEach(([dayKey, entries]) => {
+    // 날짜 구분선
+    const separator = document.createElement('div');
+    separator.style.cssText = 'font-size:0.72rem;font-weight:700;color:var(--ink-faint);padding:6px 4px 4px;letter-spacing:0.04em;border-bottom:1px solid var(--border);margin-bottom:2px;';
+    separator.textContent = dayKey;
+    list.appendChild(separator);
+
+    entries.forEach(({item, idx}) => {
+      const d = new Date(item.savedAt);
+      const timeStr = d.toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+      const isAuto = item.label === '자동저장';
+      const isLatest = idx === 0;
+      const name = item.studentName || '';
+      const title = item.finalTitle || '';
+      const preview = title ? `📋 ${title}` : (name ? `👤 ${name}` : '(내용 없음)');
+      const pageCount = countFilledPages(item);
+
+      const el = document.createElement('div');
+      el.className = 'history-item';
+      el.innerHTML = `
+        <div class="history-item-top">
+          <div>
+            <div class="history-time">${timeStr}
+              <span class="history-time-sub">${isAuto ? '⟳ 자동저장' : '💾 수동저장'}</span>
+            </div>
+          </div>
+          <span class="history-badge ${isAuto?'auto':''} ${isLatest?'latest':''}">${isLatest ? '최신' : isAuto ? '자동' : '저장'}</span>
+        </div>
+        <div class="history-preview">${preview}</div>
+        <div class="history-meta">
+          <div class="history-meta-info">
+            ${name ? `<span>👤 ${name}</span>` : ''}
+            <span>📄 ${pageCount}개 섹션 작성</span>
+          </div>
+          <button class="history-del-btn" onclick="event.stopPropagation();deleteHistory(${idx})">🗑 삭제</button>
+        </div>
+      `;
+      el.onclick = () => confirmRestore(idx);
+      list.appendChild(el);
+    });
+  });
+}
+
+function countFilledPages(data) {
+  let count = 0;
+  if (data.school || data.studentName) count++;
+  if (data.subjectName || data.unitSummary) count++;
+  if (data.questions?.some(q => q.title)) count++;
+  if (data.finalTitle || data.purposeText) count++;
+  if (data.body1 || data.body2 || data.body3) count++;
+  if (data.reflection || data.suggestion) count++;
+  if (data.myRecord) count++;
+  return count;
+}
+
+// ===== RESTORE CONFIRM =====
+let pendingRestoreIdx = null;
+
+function confirmRestore(idx) {
+  const history = getHistory();
+  const item = history[idx];
+  if (!item) return;
+  const d = new Date(item.savedAt);
+  const timeStr = d.toLocaleString('ko-KR', {month:'long', day:'numeric', hour:'2-digit', minute:'2-digit'});
+  document.getElementById('modalDesc').innerHTML =
+    `<strong>${timeStr}</strong> 시점으로 복원합니다.<br>현재 작성 중인 내용은 덮어씁니다.`;
+  document.getElementById('modalConfirmBtn').onclick = () => restoreHistory(idx);
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('show');
+  pendingRestoreIdx = null;
+}
+
+function restoreHistory(idx) {
+  const history = getHistory();
+  const item = history[idx];
+  if (!item) return;
+  closeModal();
+  applyData(item);
+  const d = new Date(item.savedAt);
+  const timeStr = d.toLocaleString('ko-KR', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'});
+  document.getElementById('saveIndicator').textContent = `복원됨 ${timeStr}`;
+  showToast(`${timeStr} 저장 내용으로 복원했습니다.`, 'success');
+  closeHistory();
+}
+
+function deleteHistory(idx) {
+  let history = getHistory();
+  history.splice(idx, 1);
+  saveHistory(history);
+  renderHistoryList();
+  showToast('삭제되었습니다.', 'success');
+}
+
+function clearAllHistory() {
+  if (!confirm('저장된 이력을 모두 삭제할까요? 이 작업은 되돌릴 수 없습니다.')) return;
+  safeLocalRemove(HISTORY_KEY);
+  window._memHistory = [];
+  renderHistoryList();
+  showToast('전체 이력이 삭제되었습니다.', 'success');
+}
+
+// ==================== TOAST ====================
+function showToast(msg, type='success', duration=3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => t.classList.remove('show'), duration);
+}
+
+// ==================== INIT ====================
+document.addEventListener('DOMContentLoaded', () => {
+  buildQuestions();
+  buildBodySection();
+  initRefs();
+  loadData();
+  updateNav();
+  updateBodyTitles();
+  updateProgressBadge();
+
+  // 토스트 클릭 시 닫기
+  document.getElementById('toast').addEventListener('click', () => {
+    document.getElementById('toast').classList.remove('show');
+  });
+
+  // iOS Safari: touchstart 빈 핸들러 → 300ms 딜레이 제거
+  document.querySelectorAll('button, .btn-nav, .option-chip').forEach(el => {
+    el.addEventListener('touchstart', function(){}, { passive: true });
+  });
+  // bodyTitle 소제목 감지는 buildBodySection() 내 oninput에서 처리
+});
+
+// ── 자동저장: 30초마다 (변경사항 있을 때만) ──
+setInterval(() => {
+  const indicator = document.getElementById('saveIndicator');
+  if (indicator && indicator.textContent.includes('수정됨')) saveData('자동저장');
+}, 30000);
+
+
+
+// Service Worker 등록
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+
+</script>
+</body>
+</html>
