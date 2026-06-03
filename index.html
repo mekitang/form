@@ -1,0 +1,1333 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>드론 수직비행 🌪️</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Nanum+Gothic:wght@400;700&display=swap');
+
+:root {
+  --c-sky0:#0b0f1a;
+  --c-sky1:#0e1f3a;
+  --c-sky2:#1a3d6b;
+  --c-wind:#64ffda;
+  --c-wind2:#00bcd4;
+  --c-danger:#ff5252;
+  --c-warn:#ffab40;
+  --c-gold:#ffd740;
+  --c-panel:rgba(8,18,36,0.93);
+  --c-border:rgba(100,255,218,0.18);
+  --glow-wind:0 0 22px #64ffda88;
+  --glow-danger:0 0 22px #ff525288;
+}
+
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+
+body{
+  background:var(--c-sky0);
+  font-family:'Nanum Gothic',sans-serif;
+  overflow:hidden;
+  width:100vw;height:100vh;
+  display:flex;align-items:center;justify-content:center;
+}
+
+/* ════ SCREENS ════ */
+.screen{
+  position:fixed;inset:0;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  z-index:200;
+  background:radial-gradient(ellipse at 50% 20%,#112244 0%,#07101e 70%);
+}
+.screen.hidden{display:none;}
+
+/* floating particles bg */
+.fp-canvas{position:absolute;inset:0;pointer-events:none;z-index:0;}
+
+/* ── TITLE ── */
+.title-wrap{position:relative;z-index:1;text-align:center;padding:0 20px;}
+.game-logo{
+  font-family:'Black Han Sans',sans-serif;
+  font-size:clamp(2.6rem,8vw,5.2rem);
+  color:var(--c-wind);
+  letter-spacing:3px;
+  text-shadow:0 0 40px #64ffda,0 0 80px #00bcd4;
+  animation:logo-pulse 3s ease-in-out infinite;
+}
+.game-logo span{color:#fff;}
+@keyframes logo-pulse{
+  0%,100%{text-shadow:0 0 40px #64ffda,0 0 80px #00bcd4;}
+  50%{text-shadow:0 0 70px #64ffda,0 0 140px #00bcd4,0 0 200px #006080;}
+}
+.game-tagline{color:#80cbc4;font-size:1.05rem;margin-top:6px;letter-spacing:2px;}
+
+.drone-float{
+  font-size:4.5rem;margin:20px 0 4px;display:block;
+  animation:hover-spin 4s ease-in-out infinite;
+  filter:drop-shadow(0 0 18px var(--c-wind));
+}
+@keyframes hover-spin{
+  0%,100%{transform:translateY(0) rotate(-4deg);}
+  50%{transform:translateY(-20px) rotate(4deg);}
+}
+
+/* wind preview */
+.wind-preview{
+  display:flex;align-items:center;gap:10px;
+  margin:10px 0 20px;
+  background:rgba(100,255,218,0.07);
+  border:1px solid var(--c-border);
+  border-radius:12px;
+  padding:8px 18px;
+  color:#80cbc4;font-size:.9rem;
+}
+.wind-arrow{font-size:1.3rem;animation:wind-sway 1.8s ease-in-out infinite;}
+@keyframes wind-sway{0%,100%{transform:translateX(0);}50%{transform:translateX(6px);}  }
+
+/* level grid */
+.lv-label{color:#80cbc4;font-size:1rem;margin-bottom:12px;letter-spacing:1px;}
+.lv-grid{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:22px;}
+.lv-btn{
+  width:64px;height:72px;border-radius:14px;
+  border:2px solid rgba(100,255,218,0.2);
+  background:rgba(100,255,218,0.05);
+  color:#80cbc4;font-family:'Nanum Gothic',sans-serif;font-size:.88rem;
+  cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  transition:all .2s;line-height:1.3;
+}
+.lv-btn:hover,.lv-btn.sel{
+  background:rgba(100,255,218,0.18);
+  border-color:var(--c-wind);color:#fff;
+  box-shadow:var(--glow-wind);transform:scale(1.08);
+}
+.lv-btn .lv-n{font-family:'Black Han Sans',sans-serif;font-size:1.7rem;color:inherit;}
+
+.start-btn{
+  padding:15px 52px;border-radius:50px;border:none;
+  background:linear-gradient(135deg,#00acc1,#006064);
+  color:#fff;font-family:'Black Han Sans',sans-serif;
+  font-size:1.5rem;letter-spacing:3px;cursor:pointer;
+  box-shadow:0 0 30px #00bcd466;
+  transition:all .2s;
+  animation:btn-breathe 2.5s ease-in-out infinite;
+}
+.start-btn:hover{transform:scale(1.06);box-shadow:0 0 55px #64ffdaaa;}
+@keyframes btn-breathe{
+  0%,100%{box-shadow:0 0 30px #00bcd466;}
+  50%{box-shadow:0 0 55px #64ffda88;}
+}
+
+/* ── RESULT SCREEN ── */
+.result-box{
+  position:relative;z-index:1;
+  background:var(--c-panel);
+  border:2px solid var(--c-wind);
+  border-radius:26px;
+  padding:40px 52px;text-align:center;
+  box-shadow:var(--glow-wind);
+  min-width:280px;
+}
+.res-emoji{font-size:3.8rem;display:block;margin-bottom:10px;}
+.res-title{
+  font-family:'Black Han Sans',sans-serif;
+  font-size:2.6rem;color:var(--c-wind);
+  text-shadow:0 0 20px var(--c-wind);
+}
+.res-info{color:#80cbc4;font-size:1.05rem;margin-top:14px;line-height:1.9;}
+.res-btns{display:flex;gap:12px;justify-content:center;margin-top:22px;}
+.res-btn{
+  padding:11px 28px;border-radius:50px;border:none;
+  font-family:'Nanum Gothic',sans-serif;font-size:1.05rem;font-weight:700;
+  cursor:pointer;transition:all .2s;
+}
+.res-btn.pri{background:linear-gradient(135deg,#00acc1,#006064);color:#fff;box-shadow:0 0 18px #00bcd444;}
+.res-btn.sec{background:rgba(255,255,255,0.07);color:#80cbc4;border:1.5px solid var(--c-border);}
+.res-btn:hover{transform:scale(1.07);}
+
+/* ════ GAME WRAPPER ════ */
+#gameWrap{
+  position:relative;
+  width:100vw;height:100vh;
+  display:none;
+}
+
+/* ── CANVAS ── */
+#gc{
+  position:absolute;
+  top:0;left:0;
+  width:100%;
+  height:calc(100% - 140px);
+  display:block;
+}
+
+/* ── TOP HUD ── */
+#hud{
+  position:absolute;top:0;left:0;right:0;
+  height:52px;
+  background:linear-gradient(180deg,rgba(5,12,25,0.96) 0%,transparent 100%);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 16px;z-index:10;
+}
+.hud-seg{display:flex;align-items:center;gap:7px;color:#80cbc4;font-size:.95rem;}
+.hud-val{font-family:'Black Han Sans',sans-serif;font-size:1.3rem;color:var(--c-wind);}
+#timerEl{
+  font-family:'Black Han Sans',sans-serif;font-size:1.6rem;
+  color:var(--c-gold);text-shadow:0 0 10px var(--c-gold);
+  min-width:54px;text-align:center;
+}
+#timerEl.urgent{color:var(--c-danger);animation:blink .5s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+.hearts{display:flex;gap:4px;}
+.heart{font-size:1.25rem;transition:all .25s;}
+.heart.lost{filter:grayscale(1) opacity(.3);transform:scale(.75);}
+
+/* ── WIND HUD (bottom of game area) ── */
+#windHud{
+  position:absolute;
+  bottom:140px;left:50%;transform:translateX(-50%);
+  display:flex;align-items:center;gap:10px;
+  background:rgba(0,188,212,0.1);
+  border:1.5px solid rgba(100,255,218,0.25);
+  border-radius:30px;
+  padding:5px 18px;
+  z-index:10;pointer-events:none;
+  transition:all .4s;
+}
+.wind-icon{font-size:1.2rem;}
+#windLabel{color:#80cbc4;font-size:.82rem;letter-spacing:1px;}
+#windBar{
+  width:90px;height:8px;border-radius:4px;
+  background:rgba(100,255,218,0.12);
+  overflow:hidden;position:relative;
+}
+#windFill{
+  height:100%;border-radius:4px;
+  background:linear-gradient(90deg,#64ffda,#00bcd4);
+  transition:width .3s,background .3s;
+}
+#windDir{font-size:1.3rem;transition:transform .5s;}
+
+/* ── CONTROLLER ── */
+#ctrlArea{
+  position:absolute;bottom:0;left:0;right:0;
+  height:140px;
+  background:linear-gradient(0deg,rgba(5,12,25,0.97) 65%,transparent 100%);
+  display:flex;align-items:center;justify-content:space-around;
+  padding:0 28px 14px;
+  z-index:10;
+}
+.ctrl-wrap{display:flex;flex-direction:column;align-items:center;gap:5px;}
+.ctrl-lbl{color:#4db6ac;font-size:.78rem;letter-spacing:1px;}
+
+.joy-ring{
+  width:96px;height:96px;border-radius:50%;
+  border:2.5px solid rgba(100,255,218,0.22);
+  background:radial-gradient(circle,rgba(100,255,218,0.05) 0%,rgba(0,20,40,0.55) 100%);
+  position:relative;
+  box-shadow:inset 0 0 18px rgba(100,255,218,0.07),0 0 10px rgba(100,255,218,0.1);
+  touch-action:none;user-select:none;cursor:pointer;
+}
+.joy-cross{position:absolute;inset:0;pointer-events:none;}
+.joy-cross::before,.joy-cross::after{content:'';position:absolute;background:rgba(100,255,218,0.15);}
+.joy-cross::before{width:1px;height:100%;left:50%;top:0;}
+.joy-cross::after{width:100%;height:1px;top:50%;left:0;}
+.joy-dot{
+  width:34px;height:34px;border-radius:50%;
+  background:radial-gradient(circle at 38% 32%,#b2fef7,#00838f);
+  position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  box-shadow:0 0 14px rgba(100,255,218,0.7);
+  pointer-events:none;
+}
+
+.center-info{
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+}
+.lv-badge{
+  background:rgba(100,255,218,0.1);
+  border:1px solid rgba(100,255,218,0.25);
+  border-radius:20px;padding:2px 14px;
+  color:var(--c-wind);font-size:.82rem;letter-spacing:1px;
+}
+.score-lbl{color:#4db6ac;font-size:.75rem;}
+#scoreDsp{
+  font-family:'Black Han Sans',sans-serif;font-size:1.9rem;
+  color:var(--c-gold);text-shadow:0 0 10px var(--c-gold);
+  min-width:70px;text-align:center;
+}
+
+/* pause btn */
+#pauseBtn{
+  position:absolute;top:12px;right:14px;
+  background:rgba(100,255,218,0.1);
+  border:1.5px solid rgba(100,255,218,0.25);
+  border-radius:9px;color:var(--c-wind);
+  font-size:1rem;padding:4px 11px;cursor:pointer;
+  font-family:'Nanum Gothic',sans-serif;font-weight:700;
+  z-index:20;
+}
+
+/* pause overlay */
+#pauseOv{
+  position:absolute;inset:0;
+  background:rgba(5,12,25,0.84);
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:18px;
+  z-index:60;
+}
+#pauseOv.hidden{display:none;}
+#pauseOv .pt{
+  font-family:'Black Han Sans',sans-serif;font-size:2.8rem;
+  color:var(--c-wind);text-shadow:0 0 20px var(--c-wind);
+}
+
+/* damage flash */
+#dmgFlash{
+  position:absolute;inset:0;
+  background:rgba(255,50,50,0.3);
+  pointer-events:none;opacity:0;z-index:40;
+  transition:opacity .1s;
+}
+
+/* wind flash */
+#windFlash{
+  position:absolute;inset:0;
+  background:rgba(100,255,218,0.12);
+  pointer-events:none;opacity:0;z-index:39;
+  transition:opacity .3s;
+}
+
+/* hint */
+#hint{
+  position:absolute;bottom:148px;left:50%;transform:translateX(-50%);
+  background:rgba(100,255,218,0.1);border:1px solid rgba(100,255,218,0.2);
+  color:#80cbc4;padding:7px 18px;border-radius:20px;font-size:.88rem;
+  pointer-events:none;opacity:0;transition:opacity .5s;
+  white-space:nowrap;z-index:15;
+}
+
+/* score popup */
+.score-pop{
+  position:absolute;pointer-events:none;
+  font-family:'Black Han Sans',sans-serif;font-size:1.4rem;
+  color:var(--c-gold);text-shadow:0 0 10px var(--c-gold);
+  animation:score-up .9s ease-out forwards;
+  z-index:30;
+}
+@keyframes score-up{
+  0%{opacity:1;transform:translateY(0) scale(1);}
+  100%{opacity:0;transform:translateY(-55px) scale(1.3);}
+}
+</style>
+</head>
+<body>
+
+<!-- ══ TITLE SCREEN ══ -->
+<div id="titleScr" class="screen">
+  <canvas class="fp-canvas" id="fpCv"></canvas>
+  <div class="title-wrap">
+    <span class="drone-float">🚁</span>
+    <div class="game-logo">드론 <span>수직비행</span></div>
+    <div class="game-tagline">바람을 이기고 하늘 끝까지!</div>
+
+    <div class="wind-preview">
+      <span class="wind-arrow">💨</span>
+      <span>바람이 드론을 밀어냅니다! 조심하세요</span>
+    </div>
+
+    <div class="lv-label">난이도 선택</div>
+    <div class="lv-grid" id="lvGrid">
+      <button class="lv-btn sel" data-lv="1" onclick="selLv(1)">
+        <span class="lv-n">1</span><span>⭐</span><span>순풍</span>
+      </button>
+      <button class="lv-btn" data-lv="2" onclick="selLv(2)">
+        <span class="lv-n">2</span><span>⭐⭐</span><span>돌풍</span>
+      </button>
+      <button class="lv-btn" data-lv="3" onclick="selLv(3)">
+        <span class="lv-n">3</span><span>⭐⭐⭐</span><span>태풍</span>
+      </button>
+      <button class="lv-btn" data-lv="4" onclick="selLv(4)">
+        <span class="lv-n">4</span><span>🌪️🌪️</span><span>폭풍</span>
+      </button>
+      <button class="lv-btn" data-lv="5" onclick="selLv(5)">
+        <span class="lv-n">5</span><span>🌪️🌪️🌪️</span><span>허리케인</span>
+      </button>
+    </div>
+    <button class="start-btn" onclick="startGame()">비행 시작 🚀</button>
+  </div>
+</div>
+
+<!-- ══ GAME OVER ══ -->
+<div id="overScr" class="screen result-screen hidden">
+  <canvas class="fp-canvas"></canvas>
+  <div class="result-box">
+    <span class="res-emoji">💥</span>
+    <div class="res-title">추락!</div>
+    <div class="res-info" id="overInfo"></div>
+    <div class="res-btns">
+      <button class="res-btn pri" onclick="retryGame()">다시 도전 🔄</button>
+      <button class="res-btn sec" onclick="goTitle()">처음으로 🏠</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CLEAR ══ -->
+<div id="clearScr" class="screen result-screen hidden">
+  <canvas class="fp-canvas"></canvas>
+  <div class="result-box">
+    <span class="res-emoji">🎉</span>
+    <div class="res-title" id="clearTitle">클리어!</div>
+    <div class="res-info" id="clearInfo"></div>
+    <div class="res-btns">
+      <button class="res-btn pri" id="nextBtn" onclick="nextLv()">다음 단계 ▶</button>
+      <button class="res-btn sec" onclick="goTitle()">처음으로 🏠</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ GAME WRAPPER ══ -->
+<div id="gameWrap">
+  <canvas id="gc"></canvas>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div class="hud-seg">
+      <span style="color:#4db6ac;font-size:.8rem">목숨</span>
+      <div class="hearts" id="heartsEl"></div>
+    </div>
+    <span id="timerEl">1:00</span>
+    <div class="hud-seg">
+      <span style="color:#4db6ac;font-size:.8rem">레벨</span>
+      <span class="hud-val" id="hudLv">LV.1</span>
+    </div>
+  </div>
+
+  <!-- Wind HUD -->
+  <div id="windHud">
+    <span class="wind-icon">💨</span>
+    <span id="windLabel">바람</span>
+    <div id="windBar"><div id="windFill" style="width:0%"></div></div>
+    <span id="windDir">→</span>
+    <span id="windSpeedTxt" style="color:var(--c-wind);font-size:.82rem;min-width:32px;"></span>
+  </div>
+
+  <!-- CONTROLLERS -->
+  <div id="ctrlArea">
+    <div class="ctrl-wrap">
+      <div class="ctrl-lbl">좌측 스틱</div>
+      <div class="joy-ring" id="lStick">
+        <div class="joy-cross"></div>
+        <div class="joy-dot" id="lDot"></div>
+      </div>
+    </div>
+
+    <div class="center-info">
+      <div class="lv-badge" id="ctrlLv">LV.1</div>
+      <div class="score-lbl">점수</div>
+      <div id="scoreDsp">0</div>
+    </div>
+
+    <div class="ctrl-wrap">
+      <div class="ctrl-lbl">우측 스틱</div>
+      <div class="joy-ring" id="rStick">
+        <div class="joy-cross"></div>
+        <div class="joy-dot" id="rDot"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="dmgFlash"></div>
+  <div id="windFlash"></div>
+  <div id="hint"></div>
+
+  <button id="pauseBtn" onclick="togglePause()">⏸ 일시정지</button>
+  <div id="pauseOv" class="hidden">
+    <div class="pt">⏸ 일시정지</div>
+    <button class="res-btn pri" onclick="togglePause()">계속하기 ▶</button>
+    <button class="res-btn sec" onclick="goTitle()">처음으로 🏠</button>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════════
+   FLOATING PARTICLES (title bg)
+════════════════════════════════════════════ */
+function initFP(cvEl){
+  if(!cvEl) return;
+  const ctx=cvEl.getContext('2d');
+  cvEl.width=window.innerWidth; cvEl.height=window.innerHeight;
+  const pts=Array.from({length:70},()=>({
+    x:Math.random()*cvEl.width,
+    y:Math.random()*cvEl.height,
+    r:Math.random()*2.5+0.5,
+    vx:(Math.random()-.5)*0.4,
+    vy:-(Math.random()*0.5+0.2),
+    alpha:Math.random()*0.6+0.2,
+    hue:170+Math.random()*30
+  }));
+  function draw(){
+    ctx.clearRect(0,0,cvEl.width,cvEl.height);
+    pts.forEach(p=>{
+      p.x+=p.vx; p.y+=p.vy;
+      if(p.y<-5){p.y=cvEl.height+5;p.x=Math.random()*cvEl.width;}
+      ctx.save();
+      ctx.globalAlpha=p.alpha*(0.6+0.4*Math.sin(Date.now()/1200+p.x));
+      ctx.fillStyle=`hsl(${p.hue},100%,70%)`;
+      ctx.shadowBlur=6;ctx.shadowColor=`hsl(${p.hue},100%,70%)`;
+      ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();
+      ctx.restore();
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+document.querySelectorAll('.fp-canvas').forEach(initFP);
+
+/* ════════════════════════════════════════════
+   LEVEL SELECT
+════════════════════════════════════════════ */
+let selLevel=1;
+function selLv(n){
+  selLevel=n;
+  document.querySelectorAll('.lv-btn').forEach(b=>b.classList.toggle('sel',+b.dataset.lv===n));
+}
+
+/* ════════════════════════════════════════════
+   LEVEL CONFIG
+════════════════════════════════════════════ */
+function getLvCfg(l){
+  // scrollSpeed: 장애물이 아래→위로 올라오는 속도 (종스크롤)
+  // windMaxForce: 최대 바람 세기 (px/s²)
+  // windChangeInterval: 바람 방향/세기 변경 주기(ms)
+  // windGustChance: 순간 돌풍 확률 (0~1, 매 초마다)
+  // windGustMultiplier: 돌풍시 곱배율
+  // wallGap: 터널 벽 사이 틈 너비 (화면 width 비율)
+  // wallGapVariance: 틈 위치 랜덤 범위 (0~1)
+  // obstacleChance: 추가 장애물 스폰 확률
+  // windPushSpd : 조작 없을 때 바람이 드론을 미는 최대 속도 (px/s)
+  // windOppResist: 바람 반대 방향 이동 시 가속도 감쇄 비율 (0~1, 클수록 많이 저항받음)
+  // windBoost    : 바람 같은 방향 이동 시 추가 가속 배율
+  return [
+    null,
+    {scrollSpeed:1.8, windPushSpd:55,  windChangeInterval:3500, windGustChance:0.08, windGustMult:1.8, windOppResist:0.40, windBoost:1.5, wallGap:0.52, wallGapV:0.3,  obstacleChance:0.0,  spawnInterval:2600},
+    {scrollSpeed:2.4, windPushSpd:95,  windChangeInterval:3000, windGustChance:0.15, windGustMult:2.2, windOppResist:0.50, windBoost:1.7, wallGap:0.46, wallGapV:0.35, obstacleChance:0.15, spawnInterval:2200},
+    {scrollSpeed:3.1, windPushSpd:145, windChangeInterval:2400, windGustChance:0.22, windGustMult:2.6, windOppResist:0.60, windBoost:2.0, wallGap:0.40, wallGapV:0.4,  obstacleChance:0.30, spawnInterval:1900},
+    {scrollSpeed:3.9, windPushSpd:210, windChangeInterval:1900, windGustChance:0.32, windGustMult:3.0, windOppResist:0.72, windBoost:2.3, wallGap:0.34, wallGapV:0.45, obstacleChance:0.45, spawnInterval:1600},
+    {scrollSpeed:5.0, windPushSpd:300, windChangeInterval:1400, windGustChance:0.45, windGustMult:3.6, windOppResist:0.85, windBoost:2.7, wallGap:0.28, wallGapV:0.5,  obstacleChance:0.62, spawnInterval:1300},
+  ][l];
+}
+
+/* ════════════════════════════════════════════
+   GAME STATE
+════════════════════════════════════════════ */
+const GAME_DUR=60, MAX_LIVES=5, INV_DUR=2000;
+const DW=60, DH=30; // drone width/height
+
+let canvas,ctx,animId;
+let running=false,paused=false;
+let level,score,lives,timeLeft,inv,invT;
+let lastT=0, timerAcc=0;
+let walls=[],obstacles=[],particles=[];
+let spawnTimer=null;
+
+// Drone
+const drone={x:0,y:0,vx:0,vy:0};
+
+// Wind system
+const wind={
+  fx:0, fy:0,       // 현재 바람 속도벡터 (px/s) — 드론에 직접 더해짐
+  targetFx:0, targetFy:0,
+  normX:0, normY:0, // 바람 단위벡터 (방향만)
+  angle:0,
+  strength:0,       // 0~1
+  gust:false,
+  gustTimer:0,
+  changeTimer:0,
+  particles:[],
+};
+
+// Input
+let lIn={x:0,y:0}, rIn={x:0,y:0};
+const keys={};
+
+/* ════════════════════════════════════════════
+   GAME FLOW
+════════════════════════════════════════════ */
+function startGame(){level=selLevel;initGame();}
+function retryGame(){document.getElementById('overScr').classList.add('hidden');initGame();}
+function nextLv(){
+  if(level<5){level++;document.getElementById('clearScr').classList.add('hidden');initGame();}
+  else{document.getElementById('clearScr').classList.add('hidden');showAllClear();}
+}
+function goTitle(){
+  stopGame();
+  document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
+  document.getElementById('titleScr').classList.remove('hidden');
+  document.getElementById('gameWrap').style.display='none';
+}
+
+function initGame(){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
+  const gw=document.getElementById('gameWrap');
+  gw.style.display='block';
+  document.getElementById('pauseOv').classList.add('hidden');
+
+  canvas=document.getElementById('gc');
+  resizeCv();
+  ctx=canvas.getContext('2d');
+
+  score=0;lives=MAX_LIVES;timeLeft=GAME_DUR;
+  inv=false;invT=0;paused=false;running=true;
+  walls=[];obstacles=[];particles=[];
+  timerAcc=0;lastT=0;
+
+  // drone starts center-bottom of game area
+  drone.x=canvas.width/2;
+  drone.y=canvas.height-80;
+  drone.vx=0;drone.vy=0;
+
+  // wind init
+  wind.fx=0;wind.fy=0;wind.targetFx=0;wind.targetFy=0;
+  wind.angle=0;wind.strength=0;wind.gust=false;
+  wind.gustTimer=0;wind.changeTimer=0;wind.particles=[];
+
+  updateHUD();
+  updateBadge();
+  document.getElementById('hint').style.opacity='0';
+
+  cancelAnimationFrame(animId);
+  spawnLoop();
+  animId=requestAnimationFrame(gameLoop);
+
+  setTimeout(()=>{
+    if(running) showHint('위로 날아올라 장애물을 피하세요! 바람에 주의!');
+  },700);
+}
+
+function stopGame(){
+  running=false;
+  cancelAnimationFrame(animId);
+  clearTimeout(spawnTimer);
+}
+
+function resizeCv(){
+  canvas.width=window.innerWidth;
+  canvas.height=window.innerHeight-140;
+}
+window.addEventListener('resize',()=>{if(running)resizeCv();});
+
+/* ════════════════════════════════════════════
+   MAIN LOOP
+════════════════════════════════════════════ */
+function gameLoop(ts){
+  if(!running)return;
+  const dt=lastT?Math.min(ts-lastT,50):16.67;
+  lastT=ts;
+
+  if(!paused){
+    updateWind(dt,ts);
+    updateDrone(dt);
+    updateWalls(dt);
+    updateObstacles(dt);
+    updateParticles(dt);
+    updateTimer(dt);
+    updateInv(dt);
+    checkCollision();
+    addWindParticles(ts);
+  }
+
+  drawAll(ts);
+  animId=requestAnimationFrame(gameLoop);
+}
+
+/* ════════════════════════════════════════════
+   WIND SYSTEM
+════════════════════════════════════════════ */
+function updateWind(dt,ts){
+  const cfg=getLvCfg(level);
+  wind.changeTimer-=dt;
+  if(wind.changeTimer<=0){
+    wind.changeTimer=cfg.windChangeInterval*(0.7+Math.random()*0.6);
+    // new random direction and strength
+    wind.angle=Math.random()*Math.PI*2;
+    const str=0.3+Math.random()*0.7;
+    wind.strength=str;
+    // targetFx/Fy = 바람이 드론을 미는 속도 (px/s), 수직 성분도 동일하게
+    wind.targetFx=Math.cos(wind.angle)*cfg.windPushSpd*str;
+    wind.targetFy=Math.sin(wind.angle)*cfg.windPushSpd*str;
+    // flash
+    const wf=document.getElementById('windFlash');
+    wf.style.opacity='0.7';
+    setTimeout(()=>wf.style.opacity='0',350);
+  }
+
+  // gust system
+  wind.gustTimer-=dt;
+  if(wind.gustTimer<=0){
+    wind.gustTimer=800+Math.random()*1200;
+    if(Math.random()<cfg.windGustChance){
+      wind.gust=true;
+      wind.targetFx*=cfg.windGustMult*(Math.random()<.5?1:-1);
+      wind.targetFy*=cfg.windGustMult;
+      setTimeout(()=>{wind.gust=false;},600+Math.random()*400);
+    }
+  }
+
+  // smooth interpolation toward target
+  const lerp=Math.min(1, dt/350);
+  wind.fx+=(wind.targetFx-wind.fx)*lerp;
+  wind.fy+=(wind.targetFy-wind.fy)*lerp;
+
+  // 바람 단위벡터 갱신
+  const wMag=Math.hypot(wind.fx,wind.fy);
+  wind.normX = wMag>0.1 ? wind.fx/wMag : 0;
+  wind.normY = wMag>0.1 ? wind.fy/wMag : 0;
+
+  // Update wind HUD
+  const spd=Math.hypot(wind.fx,wind.fy);
+  const maxSpd=cfg.windPushSpd*cfg.windGustMult;
+  const pct=Math.min(100,spd/maxSpd*100);
+  document.getElementById('windFill').style.width=pct+'%';
+  document.getElementById('windFill').style.background=
+    pct>70?'linear-gradient(90deg,#ff5252,#ff1744)':
+    pct>40?'linear-gradient(90deg,#ffab40,#ff6d00)':
+           'linear-gradient(90deg,#64ffda,#00bcd4)';
+
+  const ang=Math.atan2(wind.fy,wind.fx);
+  const dirs=['→','↘','↓','↙','←','↖','↑','↗'];
+  const di=Math.round(ang/(Math.PI/4)+8)%8;
+  document.getElementById('windDir').textContent=dirs[di];
+  document.getElementById('windSpeedTxt').textContent=
+    wind.gust?'💨돌풍!':`${Math.round(spd/10)}m/s`;
+  document.getElementById('windLabel').textContent=
+    wind.gust?'돌풍':'바람';
+}
+
+function addWindParticles(ts){
+  if(Math.random()>0.25)return;
+  const spd=Math.hypot(wind.fx,wind.fy);
+  const n=Math.floor(spd/40);
+  for(let i=0;i<n;i++){
+    const side=Math.random()<.5;
+    wind.particles.push({
+      x:side?-10:canvas.width+10,
+      y:Math.random()*canvas.height,
+      vx:(wind.fx/60)*(0.6+Math.random()*0.8),
+      vy:(wind.fy/60)*(0.6+Math.random()*0.8),
+      life:1,
+      len:20+Math.random()*40,
+      alpha:0.15+Math.random()*0.25,
+    });
+  }
+  wind.particles=wind.particles.filter(p=>{
+    p.x+=p.vx;p.y+=p.vy;p.life-=0.025;return p.life>0&&p.x>-60&&p.x<canvas.width+60;
+  });
+}
+
+/* ════════════════════════════════════════════
+   WALLS (vertical tunnel scrolling upward)
+════════════════════════════════════════════ */
+const WALL_H=120; // height of each wall segment
+
+function spawnLoop(){
+  clearTimeout(spawnTimer);
+  if(!running)return;
+  spawnWall();
+  const cfg=getLvCfg(level);
+  spawnTimer=setTimeout(spawnLoop,cfg.spawnInterval);
+}
+
+function spawnWall(){
+  if(!running||paused)return;
+  const cfg=getLvCfg(level);
+  const gapW=canvas.width*cfg.wallGap;
+  // gap center position with variance
+  const minCx=gapW/2+30;
+  const maxCx=canvas.width-gapW/2-30;
+  const cx=minCx+(maxCx-minCx)*(0.5+(Math.random()-.5)*cfg.wallGapV*2);
+
+  const isMovingWall=level>=2&&Math.random()<0.2*(level-1);
+
+  walls.push({
+    y:-WALL_H,         // starts above screen
+    cx,                // gap center x
+    gapW,
+    moving:isMovingWall,
+    mvDir:Math.random()<.5?1:-1,
+    mvSpeed:cfg.scrollSpeed*0.6,
+    hue:185+Math.floor(Math.random()*30),
+  });
+
+  // extra floating obstacle (from LV2)
+  if(Math.random()<cfg.obstacleChance){
+    spawnObs();
+  }
+}
+
+function spawnObs(){
+  const cfg=getLvCfg(level);
+  const shapes=['rect','diamond','circle'];
+  const sh=shapes[Math.floor(Math.random()*shapes.length)];
+  const w=30+Math.random()*50, h=30+Math.random()*50;
+  const x=w/2+30+Math.random()*(canvas.width-w-60);
+  const isMovH=level>=3&&Math.random()<0.4;
+  obstacles.push({
+    x,y:-60,w,h,sh,
+    vy:cfg.scrollSpeed*(0.8+Math.random()*0.5),
+    vx:isMovH?(Math.random()<.5?1:-1)*(1+Math.random()*2):0,
+    hue:10+Math.floor(Math.random()*50),
+    phase:Math.random()*Math.PI*2,
+  });
+}
+
+function updateWalls(dt){
+  const cfg=getLvCfg(level);
+  const s=dt/16.67;
+  walls=walls.filter(w=>{
+    w.y+=cfg.scrollSpeed*s;
+    if(w.moving){
+      w.cx+=w.mvDir*w.mvSpeed*s;
+      if(w.cx<w.gapW/2+20){w.cx=w.gapW/2+20;w.mvDir=1;}
+      if(w.cx>canvas.width-w.gapW/2-20){w.cx=canvas.width-w.gapW/2-20;w.mvDir=-1;}
+    }
+    return w.y<canvas.height+WALL_H;
+  });
+}
+
+function updateObstacles(dt){
+  const s=dt/16.67;
+  obstacles=obstacles.filter(o=>{
+    o.y+=o.vy*s;
+    o.x+=o.vx*s;
+    if(o.x<o.w/2){o.x=o.w/2;o.vx=Math.abs(o.vx);}
+    if(o.x>canvas.width-o.w/2){o.x=canvas.width-o.w/2;o.vx=-Math.abs(o.vx);}
+    return o.y<canvas.height+80;
+  });
+}
+
+/* ════════════════════════════════════════════
+   DRONE PHYSICS
+════════════════════════════════════════════ */
+// ── 드론 물리 상수 ──
+const ACCEL     = 480;  // 조작 가속도 (px/s²)
+const FRICTION  = 0.92; // 마찰 (높을수록 미끄럽게)
+const MAX_SPD   = 380;  // 최대 속도 (px/s)
+// 바람 관련 상수
+const WIND_DRAG_AGAINST = 0.55; // 반대 방향 이동 시 추가 감속 (0=없음, 1=완전 차단)
+const WIND_BOOST_EXTRA  = 1.8;  // 같은 방향 이동 시 추가 가속 배율
+
+function updateDrone(dt){
+  const s=dt/1000;
+  const cfg=getLvCfg(level);
+
+  // ── 키보드 입력 ──
+  const kx=(keys['a']||keys['ArrowLeft']?-1:0)+(keys['d']||keys['ArrowRight']?1:0);
+  const ky=(keys['w']||keys['ArrowUp']?-1:0)+(keys['s']||keys['ArrowDown']?1:0);
+  if(Math.abs(kx)>0) lIn.x=kx*0.85; else if(!joyDown.left) lIn.x=0;
+  if(Math.abs(ky)>0) lIn.y=ky*0.85; else if(!joyDown.left) lIn.y=0;
+
+  const inputX = lIn.x + rIn.x;
+  const inputY = lIn.y + rIn.y;
+  const inputMag = Math.hypot(inputX, inputY);
+
+  // ── 바람 방향 vs 입력 방향 내적 ──
+  // dot > 0 : 같은 방향 (순풍), dot < 0 : 반대 방향 (역풍)
+  const dot = (inputMag > 0.05)
+    ? (inputX * wind.normX + inputY * wind.normY)
+    : 0;
+
+  // ── 같은/반대 방향에 따른 가속도 스케일 ──
+  let accelScale = 1.0;
+  if(dot < 0){
+    // 역풍: 바람 세기 비율만큼 조작 가속도 감쇄
+    const resist = (-dot) * cfg.windOppResist; // 0~windOppResist
+    accelScale = Math.max(0.15, 1.0 - resist);
+  } else if(dot > 0){
+    // 순풍: 가속도 추가 부스트
+    const boost = dot * (cfg.windBoost - 1.0);
+    accelScale = 1.0 + boost * WIND_BOOST_EXTRA * 0.3;
+  }
+
+  // ── 드론 조작 가속도 적용 ──
+  drone.vx += inputX * ACCEL * accelScale * s;
+  drone.vy += inputY * ACCEL * accelScale * s;
+
+  // ── 바람 직접 속도 추가 (매 프레임 누적, 마찰로 제한됨) ──
+  // 바람을 가속도가 아닌 "속도 밀어넣기"로 처리 → 체감이 즉각적
+  const windInfluence = 0.6 + wind.strength * 0.4; // 바람 세기가 강할수록 더 많이 밀림
+  drone.vx += wind.fx * windInfluence * s;
+  drone.vy += wind.fy * windInfluence * s;
+
+  // ── 마찰 (역풍 시 마찰 약화 → 바람이 더 잘 밀어냄) ──
+  const frictionMod = dot < -0.3 ? FRICTION * 0.97 : FRICTION;
+  drone.vx *= Math.pow(frictionMod, s * 60);
+  drone.vy *= Math.pow(frictionMod, s * 60);
+
+  // ── 속도 상한 (순풍 시 상한 완화) ──
+  const maxSpd = dot > 0.3
+    ? MAX_SPD * (1.0 + dot * 0.4)  // 순풍 최대 1.4배
+    : MAX_SPD;
+  const spd = Math.hypot(drone.vx, drone.vy);
+  if(spd > maxSpd){ drone.vx=drone.vx/spd*maxSpd; drone.vy=drone.vy/spd*maxSpd; }
+
+  drone.x += drone.vx * s;
+  drone.y += drone.vy * s;
+
+  drone.x = Math.max(DW/2, Math.min(canvas.width-DW/2,  drone.x));
+  drone.y = Math.max(DH/2, Math.min(canvas.height-DH/2, drone.y));
+}
+
+/* ════════════════════════════════════════════
+   COLLISION
+════════════════════════════════════════════ */
+function checkCollision(){
+  if(inv)return;
+  const hw=DW*0.5, hh=DH*0.5;
+
+  // Wall collision: check if drone is inside a wall segment
+  for(const w of walls){
+    if(drone.y+hh>w.y && drone.y-hh<w.y+WALL_H){
+      const gapL=w.cx-w.gapW/2;
+      const gapR=w.cx+w.gapW/2;
+      if(drone.x-hw<gapL || drone.x+hw>gapR){
+        hitDrone(); return;
+      }
+    }
+  }
+
+  // Obstacle collision
+  for(const o of obstacles){
+    let hit=false;
+    if(o.sh==='circle'){
+      const ex=o.w/2*.85,ey=o.h/2*.85;
+      const tx=(drone.x-o.x)/ex,ty=(drone.y-o.y)/ey;
+      hit=tx*tx+ty*ty<=1;
+    }else{
+      hit=drone.x-hw<o.x+o.w/2&&drone.x+hw>o.x-o.w/2&&drone.y-hh<o.y+o.h/2&&drone.y+hh>o.y-o.h/2;
+    }
+    if(hit){hitDrone();return;}
+  }
+
+  // Top boundary
+  if(drone.y-hh<52)hitDrone();
+  // Bottom boundary
+  if(drone.y+hh>canvas.height)hitDrone();
+}
+
+function hitDrone(){
+  lives--;inv=true;invT=INV_DUR;
+  spawnParticles(drone.x,drone.y,'#ff5252',16);
+  spawnParticles(drone.x,drone.y,'#ffab40',8);
+  const f=document.getElementById('dmgFlash');
+  f.style.opacity='1';setTimeout(()=>f.style.opacity='0',160);
+  updateHUD();
+  if(lives<=0)setTimeout(()=>showGameOver(),300);
+}
+
+/* ════════════════════════════════════════════
+   PARTICLES
+════════════════════════════════════════════ */
+function spawnParticles(x,y,col,n=12){
+  for(let i=0;i<n;i++){
+    const a=Math.random()*Math.PI*2,s=2+Math.random()*5;
+    particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:1,
+      decay:0.03+Math.random()*0.04,r:3+Math.random()*5,col});
+  }
+}
+function updateParticles(dt){
+  const s=dt/16.67;
+  particles=particles.filter(p=>{
+    p.x+=p.vx*s;p.y+=p.vy*s;p.vy+=0.1*s;p.life-=p.decay*s;return p.life>0;
+  });
+}
+
+/* ════════════════════════════════════════════
+   TIMER & SCORE
+════════════════════════════════════════════ */
+function updateTimer(dt){
+  timerAcc+=dt;
+  if(timerAcc>=1000){
+    timerAcc-=1000;timeLeft--;score+=10;
+    const te=document.getElementById('timerEl');
+    const m=Math.floor(timeLeft/60),s=String(timeLeft%60).padStart(2,'0');
+    te.textContent=`${m}:${s}`;
+    te.classList.toggle('urgent',timeLeft<=15);
+    document.getElementById('scoreDsp').textContent=score;
+    if(timeLeft<=0)showClear();
+  }
+}
+function updateInv(dt){if(inv){invT-=dt;if(invT<=0)inv=false;}}
+
+/* ════════════════════════════════════════════
+   DRAW
+════════════════════════════════════════════ */
+function drawAll(ts){
+  // sky
+  const grad=ctx.createLinearGradient(0,0,0,canvas.height);
+  grad.addColorStop(0,'#04111f');
+  grad.addColorStop(0.4,'#0a2340');
+  grad.addColorStop(1,'#0d4060');
+  ctx.fillStyle=grad;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // stars
+  ctx.save();
+  for(let i=0;i<50;i++){
+    const sx=((i*137.5)%1)*canvas.width;
+    const sy=((i*91.3)%1)*canvas.height;
+    ctx.globalAlpha=0.3+0.3*Math.sin(ts/800+i);
+    ctx.fillStyle='#fff';
+    ctx.beginPath();ctx.arc(sx,sy,0.7+((i*3)%3)*0.4,0,Math.PI*2);ctx.fill();
+  }
+  ctx.restore();
+
+  drawWindParticles();
+  drawWalls(ts);
+  drawObstacles(ts);
+  drawDrone(ts);
+  drawParticles();
+}
+
+function drawWindParticles(){
+  ctx.save();
+  wind.particles.forEach(p=>{
+    const a=Math.atan2(p.vy,p.vx);
+    ctx.save();
+    ctx.globalAlpha=p.alpha*p.life;
+    ctx.strokeStyle='#64ffda';
+    ctx.lineWidth=1.2;
+    ctx.beginPath();
+    ctx.moveTo(p.x,p.y);
+    ctx.lineTo(p.x-Math.cos(a)*p.len,p.y-Math.sin(a)*p.len);
+    ctx.stroke();
+    ctx.restore();
+  });
+  ctx.restore();
+}
+
+function drawWalls(ts){
+  walls.forEach(w=>{
+    const gapL=w.cx-w.gapW/2;
+    const gapR=w.cx+w.gapW/2;
+
+    // left wall
+    drawWallBlock(0,w.y,gapL,WALL_H,w.hue,ts,w.moving);
+    // right wall
+    drawWallBlock(gapR,w.y,canvas.width-gapR,WALL_H,w.hue,ts,w.moving);
+
+    // gap indicator lines
+    ctx.save();
+    ctx.strokeStyle=`hsla(${w.hue},100%,70%,0.4)`;
+    ctx.lineWidth=2;
+    ctx.setLineDash([6,8]);
+    ctx.beginPath();ctx.moveTo(gapL,w.y+WALL_H/2);ctx.lineTo(gapR,w.y+WALL_H/2);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+
+    // moving wall indicator
+    if(w.moving){
+      ctx.save();
+      ctx.fillStyle='rgba(255,255,255,0.6)';
+      ctx.font='bold 14px sans-serif';
+      ctx.textAlign='center';
+      ctx.fillText('↔',w.cx,w.y+WALL_H/2+5);
+      ctx.restore();
+    }
+  });
+}
+
+function drawWallBlock(x,y,w,h,hue,ts,moving){
+  if(w<=0)return;
+  ctx.save();
+  const glow=moving?16:8;
+  ctx.shadowBlur=glow+4*Math.sin(ts/400);
+  ctx.shadowColor=`hsl(${hue},100%,55%)`;
+
+  const g=ctx.createLinearGradient(x,y,x+w,y+h);
+  g.addColorStop(0,`hsl(${hue+15},85%,35%)`);
+  g.addColorStop(0.5,`hsl(${hue},90%,22%)`);
+  g.addColorStop(1,`hsl(${hue-10},80%,15%)`);
+  ctx.fillStyle=g;
+
+  if(typeof ctx.roundRect==='function'){
+    ctx.beginPath();ctx.roundRect(x,y,w,h,6);ctx.fill();
+  }else{
+    ctx.fillRect(x,y,w,h);
+  }
+
+  // edge highlight
+  ctx.strokeStyle=`hsl(${hue+20},100%,65%)`;
+  ctx.lineWidth=1.5;
+  if(typeof ctx.roundRect==='function'){
+    ctx.beginPath();ctx.roundRect(x,y,w,h,6);ctx.stroke();
+  }else{
+    ctx.strokeRect(x,y,w,h);
+  }
+
+  // scan line
+  const scanY=((ts/20)%h)+y;
+  ctx.globalAlpha=0.12;
+  ctx.fillStyle=`hsl(${hue},100%,80%)`;
+  ctx.fillRect(x,scanY,w,3);
+
+  ctx.restore();
+}
+
+function drawObstacles(ts){
+  obstacles.forEach(o=>{
+    ctx.save();
+    ctx.shadowBlur=12+5*Math.sin(ts/350+o.phase);
+    ctx.shadowColor=`hsl(${o.hue},100%,55%)`;
+
+    const g=ctx.createRadialGradient(o.x,o.y,0,o.x,o.y,Math.max(o.w,o.h)/2);
+    g.addColorStop(0,`hsl(${o.hue+20},100%,65%)`);
+    g.addColorStop(1,`hsl(${o.hue},80%,35%)`);
+    ctx.fillStyle=g;
+    ctx.strokeStyle=`hsl(${o.hue+30},100%,75%)`;
+    ctx.lineWidth=1.5;
+
+    if(o.sh==='circle'){
+      ctx.beginPath();ctx.ellipse(o.x,o.y,o.w/2,o.h/2,0,0,Math.PI*2);
+      ctx.fill();ctx.stroke();
+    }else if(o.sh==='diamond'){
+      ctx.beginPath();
+      ctx.moveTo(o.x,o.y-o.h/2);ctx.lineTo(o.x+o.w/2,o.y);
+      ctx.lineTo(o.x,o.y+o.h/2);ctx.lineTo(o.x-o.w/2,o.y);
+      ctx.closePath();ctx.fill();ctx.stroke();
+    }else{
+      const r=6;
+      if(typeof ctx.roundRect==='function'){
+        ctx.beginPath();ctx.roundRect(o.x-o.w/2,o.y-o.h/2,o.w,o.h,r);
+      }else{
+        ctx.beginPath();ctx.rect(o.x-o.w/2,o.y-o.h/2,o.w,o.h);
+      }
+      ctx.fill();ctx.stroke();
+    }
+    ctx.restore();
+  });
+}
+
+function drawDrone(ts){
+  const x=drone.x, y=drone.y;
+  if(inv&&Math.floor(ts/120)%2===0)return;
+
+  ctx.save();
+  // tilt based on horizontal input + wind
+  const totalX=lIn.x+rIn.x+(wind.fx/500);
+  ctx.translate(x,y);
+  ctx.rotate(totalX*0.18);
+
+  ctx.shadowBlur=20;
+  ctx.shadowColor='#64ffda';
+
+  // body
+  const bg=ctx.createLinearGradient(-DW/2,-DH/2,DW/2,DH/2);
+  bg.addColorStop(0,'#80deea');bg.addColorStop(0.5,'#00838f');bg.addColorStop(1,'#004d5a');
+  ctx.fillStyle=bg;ctx.strokeStyle='#b2fef7';ctx.lineWidth=1.5;
+  ctx.beginPath();
+  if(typeof ctx.roundRect==='function') ctx.roundRect(-DW/2,-DH/2,DW,DH,9);
+  else ctx.rect(-DW/2,-DH/2,DW,DH);
+  ctx.fill();ctx.stroke();
+
+  // cockpit
+  ctx.fillStyle='rgba(200,255,255,0.28)';ctx.strokeStyle='rgba(200,255,255,0.5)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.ellipse(0,-1,13,9,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+
+  // arms + propellers
+  const propA=(ts/55)%(Math.PI*2);
+  const arms=[[-DW/2+6,-DH/2-4],[DW/2-6,-DH/2-4],[-DW/2+6,DH/2+4],[DW/2-6,DH/2+4]];
+  ctx.strokeStyle='#00838f';ctx.lineWidth=3.5;
+  arms.forEach(([ax,ay])=>{
+    ctx.beginPath();ctx.moveTo(ax>0?DW/3:-DW/3,ay>0?5:-5);ctx.lineTo(ax,ay);ctx.stroke();
+  });
+  arms.forEach(([ax,ay],i)=>{
+    ctx.save();ctx.translate(ax,ay);ctx.rotate(propA*(i%2===0?1:-1));
+    ctx.fillStyle='rgba(178,254,247,0.65)';ctx.shadowBlur=5;ctx.shadowColor='#64ffda';
+    ctx.beginPath();ctx.ellipse(-11,0,11,2.5,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.ellipse(11,0,11,2.5,0,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+  });
+
+  // LED
+  ctx.fillStyle=`hsl(${(ts/5)%360},100%,60%)`;ctx.shadowColor=`hsl(${(ts/5)%360},100%,60%)`;ctx.shadowBlur=8;
+  ctx.beginPath();ctx.arc(DW/2-4,0,3.5,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#ff5252';ctx.shadowColor='#ff5252';
+  ctx.beginPath();ctx.arc(-DW/2+4,0,3.5,0,Math.PI*2);ctx.fill();
+
+  // wind force indicator (arrow from drone)
+  if(Math.hypot(wind.fx,wind.fy)>20){
+    ctx.save();
+    ctx.rotate(-totalX*0.18); // cancel drone tilt for indicator
+    const wx=wind.fx/40,wy=wind.fy/40;
+    ctx.strokeStyle='rgba(100,255,218,0.55)';ctx.lineWidth=2;ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(wx*8,wy*8);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
+function drawParticles(){
+  particles.forEach(p=>{
+    ctx.save();ctx.globalAlpha=p.life;
+    ctx.fillStyle=p.col;ctx.shadowBlur=8;ctx.shadowColor=p.col;
+    ctx.beginPath();ctx.arc(p.x,p.y,p.r*p.life,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+  });
+}
+
+/* ════════════════════════════════════════════
+   HUD
+════════════════════════════════════════════ */
+function updateHUD(){
+  const he=document.getElementById('heartsEl');
+  he.innerHTML='';
+  for(let i=0;i<MAX_LIVES;i++){
+    const s=document.createElement('span');
+    s.className='heart'+(i>=lives?' lost':'');
+    s.textContent='❤️';he.appendChild(s);
+  }
+  document.getElementById('hudLv').textContent=`LV.${level}`;
+}
+function updateBadge(){
+  document.getElementById('ctrlLv').textContent=`LV.${level}`;
+}
+
+/* ════════════════════════════════════════════
+   END SCREENS
+════════════════════════════════════════════ */
+function showGameOver(){
+  stopGame();
+  document.getElementById('overInfo').innerHTML=
+    `레벨 <b>${level}</b> • 점수 <b>${score}</b><br>바람에 떠밀렸어요! 다시 도전해봐요 💪`;
+  document.getElementById('overScr').classList.remove('hidden');
+}
+function showClear(){
+  stopGame();
+  const last=level===5;
+  document.getElementById('clearTitle').textContent=last?'🏆 전체 클리어!':'🎉 레벨 '+level+' 클리어!';
+  document.getElementById('clearInfo').innerHTML=
+    '점수 <b>'+score+'</b> • 남은 목숨 <b>'+lives+'</b><br>'+(last?'허리케인도 이겼어요! 드론 마스터! 🌟':'바람을 이겼어요! 다음 단계로!');
+  document.getElementById('nextBtn').style.display=last?'none':'';
+  document.getElementById('clearScr').classList.remove('hidden');
+}
+function showAllClear(){
+  document.getElementById('clearTitle').textContent='🏆 모든 레벨 완료!';
+  document.getElementById('clearInfo').innerHTML=`총점 <b>${score}</b><br>드론 조종사가 되었어요! 🎖️`;
+  document.getElementById('nextBtn').style.display='none';
+  document.getElementById('clearScr').classList.remove('hidden');
+}
+
+/* ════════════════════════════════════════════
+   PAUSE
+════════════════════════════════════════════ */
+function togglePause(){
+  paused=!paused;
+  document.getElementById('pauseOv').classList.toggle('hidden',!paused);
+  document.getElementById('pauseBtn').textContent=paused?'▶ 계속하기':'⏸ 일시정지';
+}
+window.addEventListener('keydown',e=>{
+  keys[e.key]=true;
+  if(e.key==='Escape'||e.key==='p')togglePause();
+});
+window.addEventListener('keyup',e=>keys[e.key]=false);
+
+/* ════════════════════════════════════════════
+   JOYSTICK (multitouch-safe)
+════════════════════════════════════════════ */
+const joyDown={left:false,right:false};
+
+function setupJoy(ringEl,dotEl,side){
+  const MD=38;
+  let tid=null, mdown=false;
+
+  function gc(){
+    const r=ringEl.getBoundingClientRect();
+    return{cx:r.left+r.width/2,cy:r.top+r.height/2};
+  }
+  function apply(px,py){
+    const c=gc();
+    let dx=px-c.cx,dy=py-c.cy;
+    const d=Math.hypot(dx,dy);
+    if(d>MD){dx=dx/d*MD;dy=dy/d*MD;}
+    dotEl.style.transform=`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px))`;
+    const nx=dx/MD,ny=dy/MD;
+    if(side==='left'){lIn.x=nx;lIn.y=ny;}else{rIn.x=nx;rIn.y=ny;}
+  }
+  function release(){
+    tid=null;mdown=false;
+    dotEl.style.transform='translate(-50%,-50%)';
+    if(side==='left'){lIn.x=0;lIn.y=0;joyDown.left=false;}
+    else{rIn.x=0;rIn.y=0;joyDown.right=false;}
+  }
+
+  // mouse
+  ringEl.addEventListener('mousedown',e=>{mdown=true;apply(e.clientX,e.clientY);e.preventDefault();});
+  window.addEventListener('mousemove',e=>{if(mdown)apply(e.clientX,e.clientY);});
+  window.addEventListener('mouseup',()=>{if(mdown)release();});
+
+  // touch (multitouch-safe with identifier tracking)
+  ringEl.addEventListener('touchstart',e=>{
+    if(tid!==null)return;
+    for(const t of e.changedTouches){
+      tid=t.identifier;
+      if(side==='left')joyDown.left=true; else joyDown.right=true;
+      apply(t.clientX,t.clientY);break;
+    }
+    e.preventDefault();
+  },{passive:false});
+  window.addEventListener('touchmove',e=>{
+    if(tid===null)return;
+    for(const t of e.changedTouches){
+      if(t.identifier===tid){apply(t.clientX,t.clientY);e.preventDefault();break;}
+    }
+  },{passive:false});
+  window.addEventListener('touchend',e=>{
+    if(tid===null)return;
+    for(const t of e.changedTouches){if(t.identifier===tid){release();break;}}
+  });
+  window.addEventListener('touchcancel',e=>{
+    if(tid===null)return;
+    for(const t of e.changedTouches){if(t.identifier===tid){release();break;}}
+  });
+}
+
+setupJoy(document.getElementById('lStick'),document.getElementById('lDot'),'left');
+setupJoy(document.getElementById('rStick'),document.getElementById('rDot'),'right');
+
+/* ════════════════════════════════════════════
+   HINT
+════════════════════════════════════════════ */
+function showHint(msg,dur=3200){
+  const h=document.getElementById('hint');
+  h.textContent=msg;h.style.opacity='1';
+  setTimeout(()=>h.style.opacity='0',dur);
+}
+
+/* ════════════════════════════════════════════
+   roundRect polyfill
+════════════════════════════════════════════ */
+if(!CanvasRenderingContext2D.prototype.roundRect){
+  CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){
+    this.beginPath();
+    this.moveTo(x+r,y);this.arcTo(x+w,y,x+w,y+h,r);
+    this.arcTo(x+w,y+h,x,y+h,r);this.arcTo(x,y+h,x,y,r);
+    this.arcTo(x,y,x+w,y,r);this.closePath();
+  };
+}
+
+// Fix template literal typo in showClear
+window.showClear=function(){
+  stopGame();
+  const last=level===5;
+  document.getElementById('clearTitle').textContent=last?'🏆 전체 클리어!':'🎉 레벨 '+level+' 클리어!';
+  document.getElementById('clearInfo').innerHTML=
+    '점수 <b>'+score+'</b> • 남은 목숨 <b>'+lives+'</b><br>'+(last?'허리케인도 이겼어요! 드론 마스터! 🌟':'바람을 이겼어요! 다음 단계로!');
+  document.getElementById('nextBtn').style.display=last?'none':'';
+  document.getElementById('clearScr').classList.remove('hidden');
+};
+</script>
+</body>
+</html>
